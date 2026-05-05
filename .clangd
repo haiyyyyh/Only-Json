@@ -1,0 +1,18 @@
+CompileFlags:             # 编译标志
+  Add:
+    - "-std=c++23"        # 使用C++23标准
+    - "-Wall"             # 所有警告
+    - "-Wextra"           # 额外警告
+    - "-Wconversion"      # 隐式转换警告
+    - "-Wno-sign-conversion"
+    - "-Wnonnull"
+    - "-Wcast-align"
+    - "-Wfree-nonheap-object"
+    - "-Woverflow -Wshift-overflow"
+    - "-stdlib=libstdc++"
+    # - "-fno-exceptions"
+    # - "-fno-rtti"
+    - "-fprebuilt-module-path=./modules"
+
+InlayHints:
+  Enabled: false
