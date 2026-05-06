@@ -1,6 +1,5 @@
-<svg width="1053" height="960" viewBox="0 0 1053 960" xmlns="http://www.w3.org/2000/svg">
-  <!-- 背景（白色，可按需去掉） -->
-  <rect width="100%" height="100%" fill="#FFFFFF"/>
+<?xml version="1.0" standalone="no"?>
+<svg width="1010" height="1010" viewBox="0 0 1010 1010" xmlns="http://www.w3.org/2000/svg">
 
   <!-- 大括号 -->
   <path d="M470 360 Q450 360 450 390 V420 Q450 450 430 450 Q450 450 450 480 V510 Q450 540 470 540" 
@@ -9,7 +8,7 @@
         fill="none" stroke="#FFD02F" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
 
   <!-- 文字 Only -->
-  <text x="295" y="670" font-family="Mapo Mono" font-size="100" fill="#000000">Only</text>
+  <text x="270" y="670" font-family="Maple Mono" font-size="100" fill="#000000">Only</text>
   <!-- 文字 JSON -->
-  <text x="530" y="670" font-family="Mapo Mono" font-size="100" fill="#FFD02F">JSON</text>
+  <text x="530" y="670" font-family="Maple Mono" font-size="100" fill="#FFD02F">JSON</text>
 </svg>

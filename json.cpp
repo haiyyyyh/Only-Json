@@ -2,17 +2,14 @@ import depend;
 
 #include <string>
 #include <vector>
+#include <train.h>
+// #include <slice.h>
 #include "tools.cpp"
 
 namespace hai {
 
-class json;
-
-using string_t = std::string;
-using array_t = std::vector<json>;
-using object_t = std::map<string_t, json>;
-
 // clang-format off
+
 enum class json_t {
     Integer,
     Unsign,
@@ -26,7 +23,15 @@ enum class json_t {
 
 // clang-format on
 
-class json {
+class json;
+
+using string_t = std::string;
+// using array_t = std::vector<json>;
+using array_t = train<json>;
+using object_t = std::map<string_t, json>;
+
+class json{
+
 private:
     // 利用char固定1字节的特性, 申请一块足够大的栈内存来手动管理
     // 这属于高危操作, 我们应知道自己在做什么
@@ -474,16 +479,16 @@ public:
     // 容器功能函数
     // other operator overload
 public:
-    auto operator[](unsigned long idx) -> json& {
-        if (Type == json_t::Null) {
-            new (mem_block) array_t(idx + 1);
-            Type = json_t::Array;
-        } else if (Type != json_t::Array) {
-            tools::bad_using_panic("operator[](size_t)", "array");
-        }
-        // undefined behavior (depend on the array implement)
-        return (tools::mut_memcast<array_t>(mem_block))[idx];
-    }
+    // auto operator[](unsigned long idx) -> json& {
+    //     if (Type == json_t::Null) {
+    //         new (mem_block) array_t(idx + 1);
+    //         Type = json_t::Array;
+    //     } else if (Type != json_t::Array) {
+    //         tools::bad_using_panic("operator[](size_t)", "array");
+    //     }
+    //     // undefined behavior (depend on the array implement)
+    //     return (tools::mut_memcast<array_t>(mem_block))[idx];
+    // }
 
     auto operator[](const string_t& key) -> json& {
         if (Type == json_t::Null) {
@@ -567,7 +572,7 @@ private:
                 }
                 fields.push_back({});
                 item.dump(fields.back(), indent + 1);
-                if (fields.size() != this_array.size()) {
+                if (fields.size() != this_array.len()) {
                     fields.back() += ", ";
                 }
             }
@@ -748,7 +753,7 @@ private:
         for (; idx < str.length(); ++idx) {
             char ch = str[idx];
             if (ch == '"' && str[idx - 1] != '\\') {
-                return {ret, ""};
+                return {std::move(ret), ""};
             }
             if (ch == '\n') {
                 return {"", "'\"'未闭合, 找到行尾'\n', 非法的`string`"};
@@ -853,15 +858,16 @@ private:
                     return {{}, "预期为'值', 发现冗余的',', 非法的`array`"};
                 break;
             case ']':
-                if (!need_comma && result.size() != 0) return {{}, "尾随',', 非法的`array`"};
-                return {std::move(result), {}};
+                if (!need_comma && result.len() != 0) return {{}, "尾随',', 非法的`array`"};
+                return {std::move(result), {}};  // [testing debug] SEG
             default:  // 任何其他字符的情况
                 if (need_comma) {
                     return {{}, "发现未预期的字符, 预期为',', 非法的`array`"};
                 }
                 auto [val, err] = parsing_func(str, idx);
                 if (!err.empty()) return {{}, err};
-                result.push_back(std::move(val));
+                // result.push_back(std::move(val)); // [remove in release]
+                result+=(std::move(val));
                 need_comma = true;
             }
         }
@@ -890,7 +896,7 @@ private:
                     } else
                         return {{}, "结构不完整, 未预期的'}', 非法的`object`"};
                 }
-                return {result, ""};
+                return {std::move(result), ""};
             }
             // clang-format off
             switch (at_part) {
@@ -1004,7 +1010,15 @@ using namespace hai;
 
 int main() {
     // auto [js, err, idx] = json_parser::parse(fstream("./full.json", std::ios::binary));
-    json_parser::benchmark(fstream("./full.json", (ios::openmode)(ios::binary | ios::in)));
+    auto [js, err, idx] = json_parser::parse(fstream("./test/full.json", (ios::openmode)(ios::binary | ios::in)));
+    // auto str = json_parser::read_all(fstream("./test/full.json", (ios::openmode)(ios::binary | ios::in)));
+    // for(int i=3843585-150; i<=3843585+150; i++){
+    //     if(i==3843585){
+    //         std::print("\033[31m{}\033[0m", str[i]);
+    //     }
+    //     else std::print("{}", str[i]);
+    // }
+    // std::print("{}", js.array().len());
     // json_parser::read_all()
     // if(!err.empty()){
     //     std::print("{} \033[31mat {}\033[0m", err, idx);
