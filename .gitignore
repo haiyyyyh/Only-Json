@@ -5,3 +5,6 @@
 ./plan/logo.txt
 
 ./test.out
+
+./perf.data
+./perf.data.old

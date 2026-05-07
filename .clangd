@@ -10,8 +10,8 @@ CompileFlags:             # 编译标志
     - "-Wfree-nonheap-object"
     - "-Woverflow -Wshift-overflow"
     - "-stdlib=libstdc++"
-    # - "-fno-exceptions"
-    # - "-fno-rtti"
+    - "-fno-exceptions"
+    - "-fno-rtti"
     - "-fprebuilt-module-path=./modules"
 
 InlayHints:
