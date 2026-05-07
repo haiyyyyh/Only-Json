@@ -5,7 +5,6 @@ import depend;
 
 #include "tools.cpp"
 
-
 namespace hai {
 
 
@@ -689,6 +688,8 @@ public:
 // json parser (static tool box)
 namespace {
 
+// clang-format off
+
 class parser {
 private:
         // private parsing function, switch and call some parse_xxx function, be call by public parse
@@ -696,8 +697,20 @@ private:
         static auto parsing_func(const string_t &str, size_t &idx) -> std::pair<json, string_t> {
                 json result;
                 char ch = str[idx];
+                switch (ch) {
                 // number
-                if ((ch >= '0' && ch <= '9') || ch == '-') {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case '+':
+                case '-': {
                         auto ret = parse_number(str, idx);
                         switch (ret.get<1>()) {
                         case json_t::Null:
@@ -707,79 +720,76 @@ private:
                                 return {ret.get<0>(), ""};
                                 break;
                         case json_t::Unsign:
-                                result = *reinterpret_cast<unsigned long long *>(&ret.get<0>());
+                                result = tools::mut_memcast<unsigned long long>(&ret.get<0>());
                                 return {std::move(result), ""};
                                 break;
                         case json_t::Float:
-                                result = *reinterpret_cast<double *>(&ret.get<0>());
+                                result = tools::mut_memcast<double>(&ret.get<0>());
                                 return {std::move(result), ""};
                                 break;
                         default:
                                 tools::panic("development bug, something bad");  // [remove in release]
-                                break;
                         }
+                        return {};
                 }
-                // clang-format off
-        switch (ch) {
-        case '"': {
-                auto [string, err] = parse_string(str, idx);
-                if (!err.empty()) {
-                        return {"", std::move(err)};
+                case '"': {
+                        auto [string, err] = parse_string(str, idx);
+                        if (!err.empty()) {
+                                return {"", std::move(err)};
+                        }
+                        return {std::move(string), ""};
                 }
-                return {std::move(string), ""};
-        }
-        case '[': {
-                auto [array, err] = parse_array(str, idx);
-                if (!err.empty()) {
-                        return {{}, std::move(err)};
+                case '[': {
+                        auto [array, err] = parse_array(str, idx);
+                        if (!err.empty()) {
+                                return {{}, std::move(err)};
+                        }
+                        return {std::move(array), ""};
                 }
-                return {std::move(array), ""};
-        }
-        case '{': {
-                auto [object, err] = parse_object(str, idx);
-                if(!err.empty()) {
-                        return {{}, std::move(err)};
+                case '{': {
+                        auto [object, err] = parse_object(str, idx);
+                        if(!err.empty()) {
+                                return {{}, std::move(err)};
+                        }
+                        return {std::move(object), ""};
                 }
-                return {std::move(object), ""};
-        }
-        case 'n': {
-                // is it 'null' ?
-                if(idx+3 >= str.length() || str[idx+1]!='u' || str[idx+2]!='l' || str[idx+3]!='l'){
-                        return {{}, "未预期的字符'n', 未能匹配到关键字'null', 错误"};
+                case 'n': {
+                        // is it 'null' ?
+                        if(idx+3>=str.length() || str[idx+1]!='u' || str[idx+2]!='l' || str[idx+3]!='l'){
+                                return {{}, "未预期的字符'n', 未能匹配到关键字'null', 错误"};
+                        }
+                        idx+=3;
+                        return {nullptr, ""};
                 }
-                idx+=3;
-                return {nullptr, ""};
-        }
-        case 't': {
-                // is it 'true' ?
-                if(idx+3 >= str.length() || str[idx+1]!='r' || str[idx+2]!='u' || str[idx+3]!='e'){
-                        return {{}, "未预期的字符't', 未能匹配到关键字'true', 错误"};
+                case 't': {
+                        // is it 'true' ?
+                        if(idx+3>=str.length() || str[idx+1]!='r' || str[idx+2]!='u' || str[idx+3]!='e'){
+                                return {{}, "未预期的字符't', 未能匹配到关键字'true', 错误"};
+                        }
+                        idx+=3;
+                        return {true, ""};
                 }
-                idx+=3;
-                return {true, ""};
-        }
-        case 'f': {
-                // is it 'false' ?
-                if(idx+4 >= str.length() || str[idx+1]!='a' || str[idx+2]!='l' || str[idx+3]!='s' || str[idx+4]!='e'){
-                        return {{}, "未预期的字符'f', 未能匹配到关键字'false', 错误"};
+                case 'f': {
+                        // is it 'false' ?
+                        if(idx+4>=str.length() || str[idx+1]!='a' || str[idx+2]!='l' || str[idx+3]!='s' || str[idx+4]!='e'){
+                                return {{}, "未预期的字符'f', 未能匹配到关键字'false', 错误"};
+                        }
+                        idx+=4;
+                        return {false, ""};
                 }
-                idx+=4;
-                return {false, ""};
+                default:
+                        return {{}, "未预期的字符, 语法错误, 非法的json格式"};
+                }
         }
-        default:
-                return {{}, "未预期的字符, 语法错误, 非法的json格式"};
-        }
-                // clang-format on
-                return {};
-        }
+
         static auto parse_string(const string_t &str, size_t &idx) -> std::pair<string_t, string_t> {
                 string_t ret;
                 ++idx;  // we make sure that the first character is '"'
-                for (; idx < str.length(); ++idx) {
-                        char ch = str[idx];
-                        switch (ch) {
+                for (; idx<str.length(); ++idx) {
+                        char ch=str[idx];
+                        switch(ch) {
                         case '"':
-                                if (str[idx - 1] != '\\') {
+                                if (str[idx-1] != '\\') {
                                         return {std::move(ret), ""};
                                 }
                                 break;
@@ -798,40 +808,44 @@ private:
                 string_t temp_num_literal_str;
                 char ch = str[idx];
                 if (ch == '0') {
-                        if (idx + 1 < str.length()) {
-                                if (str[idx + 1] == '.') {
+                        if (idx+1 < str.length()) {
+                                switch(str[idx+1]) {
+                                case '.':
                                         temp_num_literal_str += '.';
                                         find_dot = true;
-                                } else if (str[idx + 1] == 'e') {
-                                        temp_num_literal_str += 'e';
+                                        break;
+                                case 'E':
+                                case 'e':
+                                        temp_num_literal_str += str[idx+1];
                                         find_e = true;
-                                } else {
+                                        break;
+                                default:
                                         return {0, json_t::Integer, ""};
                                 }
                         } else {
                                 return {0, json_t::Integer, ""};
                         }
-                } else if (ch == '-') {
-                        if (idx + 1 < str.length()) {
-                                ch = str[idx + 1];
-                                if (ch < '0' || ch > '9') {
+                } else if (ch=='-') {
+                        if (idx+1 < str.length()) {
+                                ch = str[idx+1];
+                                if (ch<'0' || ch>'9') {
                                         return {0, json_t::Null, "孤立的负号'-', 非法的`number`"};
                                 }
                         } else {
                                 return {0, json_t::Null, "孤立的负号'-', 发现EOF, 非法的`number`"};
                         }
-                        is_negative = true;
+                        is_negative=true;
                         ++idx;
                 }
-                for (; idx < str.length(); ++idx) {
+                for (; idx<str.length(); ++idx) {
                         ch = str[idx];
-                        if (ch >= '0' && ch <= '9') {
-                                temp_num_literal_str += ch;
+                        if (ch>='0' && ch<='9') {
+                                temp_num_literal_str+=ch;
                                 continue;
                         }
                         switch (ch) {
                         case '\n':
-                                if (temp_num_literal_str.back() == '.' || temp_num_literal_str.back() == 'e') {
+                                if (temp_num_literal_str.back()=='.' || temp_num_literal_str.back()=='e') {
                                         return {0, json_t::Null,
                                                 "数字以'.'或'e'结尾, 发现行尾'\n', 非法的`number`"};
                                 }
@@ -842,13 +856,14 @@ private:
                                 if (find_dot || find_e) {
                                         return {0, json_t::Null, "尾随多余的'.', 非法的`number`"};
                                 }
-                                find_dot = true;
+                                find_dot=true;
                                 break;
+                        case 'E':
                         case 'e':
                                 if (find_e) {
                                         return {0, json_t::Null, "尾随多余的'e', 非法的`number`"};
                                 }
-                                find_e = true;
+                                find_e=true;
                                 break;
                         default:
                                 // 这里可以直接做格式检查的, 但会让状态机的流程变乱, 多解析一次数字也没什么开销,
@@ -856,7 +871,7 @@ private:
                                 goto parse_string_to_number;
                         }
                 }
-                if (temp_num_literal_str.back() == '.' || temp_num_literal_str.back() == 'e') {
+                if (temp_num_literal_str.back()=='.' || temp_num_literal_str.back()=='e') {
                         return {0, json_t::Null, "数字以'.'或'e'结尾, 发现EOF, 非法的`number`"};
                 }
 parse_string_to_number:
@@ -872,24 +887,22 @@ parse_string_to_number:
                 ++idx;  // make sure that the first character is '['
                 array_t result;
                 bool need_comma = false;
-                for (; idx < str.length(); ++idx) {
+                for (; idx<str.length(); ++idx) {
                         char ch = str[idx];
                         switch (ch) {
                         case ' ':
-                                continue;
                         case '\t':
-                                continue;
                         case '\n':
                                 continue;
                         case ',':
                                 if (need_comma) {
-                                        need_comma = false;
+                                        need_comma=false;
                                 } else {
                                         return {{}, "预期为'值', 发现冗余的',', 非法的`array`"};
                                 }
                                 break;
                         case ']':
-                                if (!need_comma && result.size() != 0) {
+                                if (!need_comma && result.size()!=0) {
                                         return {{}, "尾随',', 非法的`array`"};
                                 }
                                 return {std::move(result), {}};
@@ -911,21 +924,19 @@ parse_string_to_number:
         static auto parse_object(const string_t &str, size_t &idx) -> std::pair<object_t, string_t> {
                 ++idx;  // first character must be '{'
                 object_t result;
-                constexpr int part_key = 0, part_colon = 1, part_val = 2, comma_or_end = 3;
+                constexpr int part_key{0}, part_colon{1}, part_val{2}, comma_or_end{3};
                 int at_part = part_key;  // [0]key, [1]colon, [2]value, [3]comma or '}' ending
                 std::pair<string_t, json> temp;
-                for (; idx < str.length(); ++idx) {
+                for (; idx<str.length(); ++idx) {
                         char ch = str[idx];
                         switch (ch) {
                         case ' ':
-                                continue;
                         case '\t':
-                                continue;
                         case '\n':
                                 continue;
                         case '}':
-                                if (at_part != comma_or_end) {
-                                        if (at_part == part_key && result.size() == 0) {
+                                if (at_part!=comma_or_end) {
+                                        if (at_part==part_key && result.size()==0) {
                                                 return {std::move(result), ""};  // empty json object, like "{}"
                                         } else {
                                                 return {{}, "结构不完整, 未预期的'}', 非法的`object`"};
@@ -933,44 +944,42 @@ parse_string_to_number:
                                 }
                                 return {std::move(result), ""};
                         }
-                        // clang-format off
-                switch (at_part) {
-                case part_key: {
-                        if (ch != '"') {
-                                return {{}, "预期为'键', 发现异常字符, 非法的`object`"};
+                        switch (at_part) {
+                        case part_key: {
+                                if (ch!='"') {
+                                        return {{}, "预期为'键', 发现异常字符, 非法的`object`"};
+                                }
+                                auto [key, err] = parse_string(str, idx);
+                                if (!err.empty()) {
+                                        return {{}, std::move(err)};
+                                }
+                                temp.first = std::move(key);
+                                at_part = part_colon;
+                                break;
                         }
-                        auto [key, err] = parse_string(str, idx);
-                        if (!err.empty()) {
-                                return {{}, std::move(err)};
+                        case part_colon:
+                                if (ch!=':') {
+                                        return {{}, "预期为':', 发现异常字符, 非法的`object`"};
+                                }
+                                at_part = part_val;
+                                break;
+                        case part_val: {
+                                auto [val, err] = parsing_func(str, idx);
+                                if (!err.empty()) {
+                                        return {{}, std::move(err)};
+                                }
+                                temp.second = std::move(val);
+                                result.insert(std::move(temp));
+                                at_part = comma_or_end;
+                                break;
                         }
-                        temp.first = std::move(key);
-                        at_part = part_colon;
-                        break;
-                }
-                case part_colon:
-                        if (ch != ':') {
-                                return {{}, "预期为':', 发现异常字符, 非法的`object`"};
+                        case comma_or_end:
+                                if (ch!=',') {
+                                        return {{}, "预期为',', 发现异常字符, 非法的`object`"};
+                                }
+                                at_part = part_key;
+                                break;
                         }
-                        at_part = part_val;
-                        break;
-                case part_val: {
-                        auto [val, err] = parsing_func(str, idx);
-                        if (!err.empty()) {
-                                return {{}, std::move(err)};
-                        }
-                        temp.second = std::move(val);
-                        result.insert(std::move(temp));
-                        at_part = comma_or_end;
-                        break;
-                }
-                case comma_or_end:
-                        if (ch != ',') {
-                                return {{}, "预期为',', 发现异常字符, 非法的`object`"};
-                        }
-                        at_part = part_key;
-                        break;
-                }
-                        // clang-format on
                 }  // end loop for
                 return {{}, "结构不完整, 发现EOF, 非法的`object`"};
         }
@@ -983,9 +992,7 @@ public:
                 for (; idx < json_text.length(); ++idx) {
                         switch (json_text[idx]) {
                         case ' ':
-                                continue;
                         case '\t':
-                                continue;
                         case '\n':
                                 continue;
                         }
@@ -1003,9 +1010,7 @@ public:
                         for (; idx < json_text.length(); ++idx) {
                                 switch (json_text[idx]) {
                                 case ' ':
-                                        continue;
                                 case '\t':
-                                        continue;
                                 case '\n':
                                         continue;
                                 }
@@ -1020,10 +1025,12 @@ public:
         }
 };
 
+// clang-format on
+
 }  // namespace
 
 
-auto operator""_json(const char *constr, size_t) -> json {
+inline auto operator""_json(const char *constr, size_t) -> json {
         auto [temp, err, _] = parser::parse_json(constr);
         if (!err.empty()) {
                 return nullptr;
@@ -1031,7 +1038,7 @@ auto operator""_json(const char *constr, size_t) -> json {
         return std::move(temp);
 }
 
-auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
+inline auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
         auto [temp, err, idx] = parser::parse_json(str);
         if (!err.empty()) {
                 return {std::move(err), idx};
@@ -1040,7 +1047,7 @@ auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
         return {"", idx};
 }
 
-auto json::parse(std::ifstream file) -> std::pair<string_t, size_t> {
+inline auto json::parse(std::ifstream file) -> std::pair<string_t, size_t> {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
@@ -1055,7 +1062,7 @@ auto json::parse(std::ifstream file) -> std::pair<string_t, size_t> {
         return {"", idx};
 }
 
-auto parse(const string_t &str, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
+inline auto parse(const string_t &str, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
         auto [temp, err, idx] = parser::parse_json(str);
         if (idx_p != nullptr) {
                 *idx_p = idx;
@@ -1072,7 +1079,7 @@ auto parse(const string_t &str, string_t *err_p = nullptr, size_t *idx_p = nullp
         return temp;
 }
 
-auto parse(std::ifstream file, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
+inline auto parse(std::ifstream file, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
@@ -1102,20 +1109,24 @@ auto parse(std::ifstream file, string_t *err_p = nullptr, size_t *idx_p = nullpt
 
 
 
-
 using namespace std;
 using namespace hai;
 
+
+auto benchmark(std::ifstream file) {
+        file.seekg(0, std::ios::end);
+        size_t json_len = (size_t)file.tellg();
+        file.seekg(0, std::ios::beg);
+        string_t str;
+        str.resize(json_len);
+        file.read(str.data(), json_len);
+        for(int i=0; i<10; ++i){
+                parser::parse_json(str);
+        }
+}
+
+
 int main() {
-    // auto [js, err, idx] = json_parser::parse(fstream("./full.json", std::ios::binary));
-    // json a; auto [err, idx] = a.parse(ifstream("./test/in.json", ios::binary));
-    json a = parse(ifstream("./test/full.json"));
-    a[1];
-    // if(!err.empty()){
-    //     std::print("{} \033[31mat {}\033[0m", err, idx);
-    //     return 1;
-    // }
-    // std::ofstream o("./test/out.json");
-    // std::print("{}", a[0].dump());
-    return 0;
+        benchmark(ifstream("./test/big.json"));
+        return 0;
 }

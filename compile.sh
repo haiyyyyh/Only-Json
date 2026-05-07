@@ -2,14 +2,14 @@
 
 set -e
 
-module_dir='modules'
+module_dir='tool'
 cpp_v='-std=c++23'
 # cflag='-O0 -g -fno-exceptions -fno-rtti'
 # cflag='-O0 -g3 -fsanitize=address,undefined,leak'
 # cflag='-O0 -g3'
 cflag='-O2 -g3 -fno-omit-frame-pointer -fno-exceptions -fno-rtti'
 compile_module='--precompile'
-find_module='-fprebuilt-module-path=./modules'
+find_module='-fprebuilt-module-path=./tool'
 cc='clang++'
 lib='-stdlib=libstdc++'
 
@@ -29,5 +29,5 @@ fi
 if (( $1 == 1 || $1 == 2 ))
 then
     echo "compile json"
-    $cc $cpp_v ${cflag} json.cpp -o test.out $lib $find_module
+    $cc $cpp_v ${cflag} src.cpp -o test.out $lib $find_module
 fi
