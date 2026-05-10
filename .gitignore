@@ -1,10 +1,12 @@
-./modules/depend.pcm
+./tool/depend.pcm
 
 ./plan/logo.svg
 
 ./plan/logo.txt
 
 ./test.out
+
+./test/*
 
 ./perf.data
 ./perf.data.old

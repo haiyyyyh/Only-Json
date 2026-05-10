@@ -22,8 +22,8 @@
     json...and only json
 
 source book mark:
-> use editor searching for something like this "[|||] P?: "  ('?' is a number)
-> regex "\[\|\|\|\]P[0-9]+: "
+> use editor searching for something like this "[\> P0: "  ('0' can be number 0~9)
+> regex "\[\\>P[0-9]+: "
 
 *****************************************************************************************/
 
@@ -34,14 +34,16 @@ source book mark:
 #include <cstring>   // memcpy
 #include <fstream>   // ifstring
 #include <map>       // object_t
+// import depend;
 #include <string>    // string_t
 #include <vector>    // array_t
+#include <cmath>     // macro INFINITY
 
 
 
 namespace hai {
 
-// [|||] P0: private template tools,table and functions
+// [\> P0: private template tools,table and functions
 
 namespace {
 
@@ -82,6 +84,8 @@ constexpr bool IntegerOnly<unsigned long>{true};
 
 template <>
 constexpr bool IntegerOnly<unsigned long long>{true};
+
+constexpr long long LL_MAX = 9223372036854775807LL;
 
 // SFINAE, Float
 
@@ -206,6 +210,81 @@ auto to_str(double num) -> const char * {
 
 // clang-format off
 
+const double pow_table[] {
+    1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9, 
+    1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+    1e20, 1e21, 1e22, 1e23, 1e24, 1e25, 1e26, 1e27, 1e28, 1e29,
+    1e30, 1e31, 1e32, 1e33, 1e34, 1e35, 1e36, 1e37, 1e38, 1e39,
+    1e40, 1e41, 1e42, 1e43, 1e44, 1e45, 1e46, 1e47, 1e48, 1e49,
+    1e50, 1e51, 1e52, 1e53, 1e54, 1e55, 1e56, 1e57, 1e58, 1e59,
+    1e60, 1e61, 1e62, 1e63, 1e64, 1e65, 1e66, 1e67, 1e68, 1e69,
+    1e70, 1e71, 1e72, 1e73, 1e74, 1e75, 1e76, 1e77, 1e78, 1e79,
+    1e80, 1e81, 1e82, 1e83, 1e84, 1e85, 1e86, 1e87, 1e88, 1e89,
+    1e90, 1e91, 1e92, 1e93, 1e94, 1e95, 1e96, 1e97, 1e98, 1e99,
+    1e100, 1e101, 1e102, 1e103, 1e104, 1e105, 1e106, 1e107, 1e108, 1e109, 
+    1e110, 1e111, 1e112, 1e113, 1e114, 1e115, 1e116, 1e117, 1e118, 1e119,
+    1e120, 1e121, 1e122, 1e123, 1e124, 1e125, 1e126, 1e127, 1e128, 1e129,
+    1e130, 1e131, 1e132, 1e133, 1e134, 1e135, 1e136, 1e137, 1e138, 1e139,
+    1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148, 1e149,
+    1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159,
+    1e160, 1e161, 1e162, 1e163, 1e164, 1e165, 1e166, 1e167, 1e168, 1e169,
+    1e170, 1e171, 1e172, 1e173, 1e174, 1e175, 1e176, 1e177, 1e178, 1e179,
+    1e180, 1e181, 1e182, 1e183, 1e184, 1e185, 1e186, 1e187, 1e188, 1e189,
+    1e190, 1e191, 1e192, 1e193, 1e194, 1e195, 1e196, 1e197, 1e198, 1e199,
+    //
+    1e200, 1e201, 1e202, 1e203, 1e204, 1e205, 1e206, 1e207, 1e208, 1e209,
+    1e210, 1e211, 1e212, 1e213, 1e214, 1e215, 1e216, 1e217, 1e218, 1e219,
+    1e220, 1e221, 1e222, 1e223, 1e224, 1e225, 1e226, 1e227, 1e228, 1e229,
+    1e230, 1e231, 1e232, 1e233, 1e234, 1e235, 1e236, 1e237, 1e238, 1e239,
+    1e240, 1e241, 1e242, 1e243, 1e244, 1e245, 1e246, 1e247, 1e248, 1e249,
+    1e250, 1e251, 1e252, 1e253, 1e254, 1e255, 1e256, 1e257, 1e258, 1e259,
+    1e260, 1e261, 1e262, 1e263, 1e264, 1e265, 1e266, 1e267, 1e268, 1e269,
+    1e270, 1e271, 1e272, 1e273, 1e274, 1e275, 1e276, 1e277, 1e278, 1e279,
+    1e280, 1e281, 1e282, 1e283, 1e284, 1e285, 1e286, 1e287, 1e288, 1e289,
+    1e290, 1e291, 1e292, 1e293, 1e294, 1e295, 1e296, 1e297, 1e298, 1e299,
+    1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307, 1e308
+};
+
+const double neg_pow_table[] {
+    1e-0,  1e-1,  1e-2,  1e-3,  1e-4,  1e-5,  1e-6,  1e-7,  1e-8,  1e-9, 
+    1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-16, 1e-17, 1e-18, 1e-19,
+    1e-20, 1e-21, 1e-22, 1e-23, 1e-24, 1e-25, 1e-26, 1e-27, 1e-28, 1e-29,
+    1e-30, 1e-31, 1e-32, 1e-33, 1e-34, 1e-35, 1e-36, 1e-37, 1e-38, 1e-39,
+    1e-40, 1e-41, 1e-42, 1e-43, 1e-44, 1e-45, 1e-46, 1e-47, 1e-48, 1e-49,
+    1e-50, 1e-51, 1e-52, 1e-53, 1e-54, 1e-55, 1e-56, 1e-57, 1e-58, 1e-59,
+    1e-60, 1e-61, 1e-62, 1e-63, 1e-64, 1e-65, 1e-66, 1e-67, 1e-68, 1e-69,
+    1e-70, 1e-71, 1e-72, 1e-73, 1e-74, 1e-75, 1e-76, 1e-77, 1e-78, 1e-79,
+    1e-80, 1e-81, 1e-82, 1e-83, 1e-84, 1e-85, 1e-86, 1e-87, 1e-88, 1e-89,
+    1e-90, 1e-91, 1e-92, 1e-93, 1e-94, 1e-95, 1e-96, 1e-97, 1e-98, 1e-99,
+    1e-100, 1e-101, 1e-102, 1e-103, 1e-104, 1e-105, 1e-106, 1e-107, 1e-108, 1e-109, 
+    1e-110, 1e-111, 1e-112, 1e-113, 1e-114, 1e-115, 1e-116, 1e-117, 1e-118, 1e-119,
+    1e-120, 1e-121, 1e-122, 1e-123, 1e-124, 1e-125, 1e-126, 1e-127, 1e-128, 1e-129,
+    1e-130, 1e-131, 1e-132, 1e-133, 1e-134, 1e-135, 1e-136, 1e-137, 1e-138, 1e-139,
+    1e-140, 1e-141, 1e-142, 1e-143, 1e-144, 1e-145, 1e-146, 1e-147, 1e-148, 1e-149,
+    1e-150, 1e-151, 1e-152, 1e-153, 1e-154, 1e-155, 1e-156, 1e-157, 1e-158, 1e-159,
+    1e-160, 1e-161, 1e-162, 1e-163, 1e-164, 1e-165, 1e-166, 1e-167, 1e-168, 1e-169,
+    1e-170, 1e-171, 1e-172, 1e-173, 1e-174, 1e-175, 1e-176, 1e-177, 1e-178, 1e-179,
+    1e-180, 1e-181, 1e-182, 1e-183, 1e-184, 1e-185, 1e-186, 1e-187, 1e-188, 1e-189,
+    1e-190, 1e-191, 1e-192, 1e-193, 1e-194, 1e-195, 1e-196, 1e-197, 1e-198, 1e-199,
+    //
+    1e-200, 1e-201, 1e-202, 1e-203, 1e-204, 1e-205, 1e-206, 1e-207, 1e-208, 1e-209,
+    1e-210, 1e-211, 1e-212, 1e-213, 1e-214, 1e-215, 1e-216, 1e-217, 1e-218, 1e-219,
+    1e-220, 1e-221, 1e-222, 1e-223, 1e-224, 1e-225, 1e-226, 1e-227, 1e-228, 1e-229,
+    1e-230, 1e-231, 1e-232, 1e-233, 1e-234, 1e-235, 1e-236, 1e-237, 1e-238, 1e-239,
+    1e-240, 1e-241, 1e-242, 1e-243, 1e-244, 1e-245, 1e-246, 1e-247, 1e-248, 1e-249,
+    1e-250, 1e-251, 1e-252, 1e-253, 1e-254, 1e-255, 1e-256, 1e-257, 1e-258, 1e-259,
+    1e-260, 1e-261, 1e-262, 1e-263, 1e-264, 1e-265, 1e-266, 1e-267, 1e-268, 1e-269,
+    1e-270, 1e-271, 1e-272, 1e-273, 1e-274, 1e-275, 1e-276, 1e-277, 1e-278, 1e-279,
+    1e-280, 1e-281, 1e-282, 1e-283, 1e-284, 1e-285, 1e-286, 1e-287, 1e-288, 1e-289,
+    1e-290, 1e-291, 1e-292, 1e-293, 1e-294, 1e-295, 1e-296, 1e-297, 1e-298, 1e-299,
+    1e-300, 1e-301, 1e-302, 1e-303, 1e-304, 1e-305, 1e-306, 1e-307, 1e-308, 1e-309,
+    1e-310, 1e-311, 1e-312, 1e-313, 1e-314, 1e-315, 1e-316, 1e-317, 1e-318, 1e-319,
+    1e-320, 1e-321, 1e-322, 1e-323
+};
+
+constexpr int pow_table_len = sizeof(pow_table) / sizeof(pow_table[0]);
+constexpr int neg_pow_table_len = sizeof(neg_pow_table) / sizeof(neg_pow_table[0]);
+
 const char* indent_table[] {
         "",
         "    ",
@@ -292,12 +371,37 @@ public:
         }
 };
 
+auto u32ch_to_u8(unsigned int ch) -> std::string {
+        std::string ret;
+        ret.reserve(4);
+        if (ch <= 0x7F) {
+                // 1字节：0xxxxxxx
+                ret += (char)ch;
+        } else if (ch <= 0x7FF) {
+                // 2字节：110xxxxx 10xxxxxx
+                ret += (char)(0xC0 | ((ch >> 6) & 0x1F));  // 第1字节：110 + 高5位
+                ret += (char)(0x80 | (ch & 0x3F));         // 第2字节：10 + 低6位
+        } else if (ch <= 0xFFFF) {
+                // 3字节：1110xxxx 10xxxxxx 10xxxxxx
+                ret += (char)(0xE0 | ((ch >> 12) & 0x0F));  // 第1字节：1110 + 高4位
+                ret += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第2字节：10 + 中间6位
+                ret += (char)(0x80 | (ch & 0x3F));          // 第3字节：10 + 低6位
+        } else {
+                // 4字节：11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+                ret += (char)(0xF0 | ((ch >> 18) & 0x07));  // 第1字节：11110 + 高3位
+                ret += (char)(0x80 | ((ch >> 12) & 0x3F));  // 第2字节：10 + 次高6位
+                ret += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第3字节：10 + 中间6位
+                ret += (char)(0x80 | (ch & 0x3F));          // 第4字节：10 + 低6位
+        }
+        return ret;
+}
+
 }  // namespace tools
 
 }  // namespace
 
 
-// [|||] P1: enum and basic data container
+// [\> P1: enum and basic data container
 
 // clang-format off
 
@@ -323,7 +427,7 @@ using object_t = std::map<string_t, json>;
 
 
 
-// [|||] P2: json class definition start
+// [\> P2: json class definition start
 
 class json {
 private:
@@ -354,15 +458,16 @@ private:
         }
 
 
-        // [|||] P2.1: 构造函数和析构函数
+        // [\> P2.1: 构造函数和析构函数
         // constructor and destructor
+        // (a constructor that passed parameter std::ifstream is at P2.7)
 public:
         json() { Type = json_t::Null; }
         // Integer match this function
         template <typename T>
                 requires(tools::IntegerOnly<T>)
         json(T i_v) noexcept {
-                if (i_v > 9223372036854775807LL) {
+                if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = json_t::Unsign;
                 } else {
@@ -480,100 +585,114 @@ public:
         ~json() noexcept { free(); }
 
 
-        // [|||] P2.2: 等于号重载
+        // [\> P2.2: 等于号重载
         // assignment
+        // (a assignment function that passed parameter std::ifstream is at P2.7)
 public:
         // Integer match this function
         template <typename T>
                 requires(tools::IntegerOnly<T>)
-        void operator=(T i_v) noexcept {
+        auto operator=(T i_v) noexcept -> json& {
                 free();
-                if (i_v >= 9223372036854775807LL) {
+                if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = json_t::Unsign;
                 } else {
                         new (mem_block) long long(i_v);
                         Type = json_t::Integer;
                 }
+                return *this;
         }
 
         // Floating match this function
         template <typename T>
                 requires(tools::FloatOnly<T>)
-        void operator=(T f_v) noexcept {
+        auto operator=(T f_v) noexcept -> json& {
                 free();
                 new (mem_block) double(f_v);
                 Type = json_t::Float;
+                return *this;
         }
 
         // bool only
-        void operator=(bool b_v) noexcept {
+        auto operator=(bool b_v) noexcept -> json& {
                 free();
                 new (mem_block) bool(b_v);
                 Type = json_t::Boolean;
+                return *this;
         }
 
         // null
-        void operator=(decltype(nullptr)) noexcept {
+        auto operator=(decltype(nullptr)) noexcept -> json& {
                 free();
                 Type = json_t::Null;
+                return *this;
         }
 
         // string
-        void operator=(const string_t &str_v) noexcept {
+        auto operator=(const string_t &str_v) noexcept -> json& {
                 free();
                 new (mem_block) string_t(str_v);
                 Type = json_t::String;
+                return *this;
         }
-        void operator=(string_t &&str_v) noexcept {
+        auto operator=(string_t &&str_v) noexcept -> json& {
                 free();
                 new (mem_block) string_t((string_t &&)str_v);
                 Type = json_t::String;
+                return *this;
         }
-        void operator=(const char *constr) noexcept {
+        auto operator=(const char *constr) noexcept -> json& {
                 free();
                 new (mem_block) string_t{constr};
                 Type = json_t::String;
+                return *this;
         }
 
         // list
-        void operator=(const array_t &arr_v) noexcept {
+        auto operator=(const array_t &arr_v) noexcept -> json& {
                 free();
                 new (mem_block) array_t(arr_v);
                 Type = json_t::Array;
+                return *this;
         }
-        void operator=(array_t &&arr_v) noexcept {
+        auto operator=(array_t &&arr_v) noexcept -> json& {
                 free();
                 new (mem_block) array_t((array_t &&)arr_v);
                 Type = json_t::Array;
+                return *this;
         }
 
         template <typename = std::enable_if<true>>
-        void operator=(std::initializer_list<json> initial_list) noexcept {
+        auto operator=(std::initializer_list<json> initial_list) noexcept -> json& {
                 free();
                 new (mem_block) array_t(initial_list);
                 Type = json_t::Array;
+                return *this;
         }
 
         // dict
-        void operator=(const object_t &obj_v) noexcept {
+        auto operator=(const object_t &obj_v) noexcept -> json& {
                 free();
                 new (mem_block) object_t(obj_v);
                 Type = json_t::Object;
+                return *this;
         }
-        void operator=(object_t &&obj_v) noexcept {
+        auto operator=(object_t &&obj_v) noexcept -> json& {
                 free();
                 new (mem_block) object_t((object_t &&)obj_v);
                 Type = json_t::Object;
+                return *this;
         }
-        void operator=(std::initializer_list<std::pair<const string_t, json>> initial_list) noexcept {
+        auto operator=(std::initializer_list<std::pair<const string_t, json>> initial_list) noexcept -> json& {
                 free();
                 new (mem_block) object_t(initial_list);
                 Type = json_t::Object;
+                return *this;
         }
 
         // copy
-        void operator=(const json &other) noexcept {
+        auto operator=(const json &other) noexcept -> json& {
                 free();
                 if (other.Type < json_t::Boolean) {
                         memcpy(mem_block, other.mem_block, 8);
@@ -596,9 +715,10 @@ public:
                         }
                 }
                 Type = other.Type;
+                return *this;
         }
         // move
-        void operator=(json &&other) noexcept {
+        auto operator=(json &&other) noexcept -> json& {
                 free();
                 switch (other.Type) {
                 case json_t::String:
@@ -616,10 +736,11 @@ public:
                 }
                 Type = other.Type;
                 other.Type = json_t::Null;
+                return *this;
         }
 
 
-        // [|||] P2.3: 隐式\显式转换
+        // [\> P2.3: 隐式\显式转换
         // convert
 public:
         template <typename T>
@@ -719,7 +840,7 @@ public:
         }
 
 
-        // [|||] P2.4: 获取内部对象的函数
+        // [\> P2.4: 获取内部对象的函数
         // get
 public:
         auto type() -> json_t { return Type; }
@@ -776,7 +897,7 @@ public:
         }
 
 
-        // [|||] P2.5: 容器功能函数
+        // [\> P2.5: 容器功能函数
         // other operator overload
 public:
         auto operator[](unsigned long idx) -> json & {
@@ -812,7 +933,7 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        // [|||] P2.6: json的序列化
+        // [\> P2.6: json的序列化
         // for dumping function ↓↓↓
 private:
         static void string_decode_dump(const string_t &in_str, string_t &to_str) {
@@ -965,9 +1086,21 @@ public:
                 return ret;
         }
 
+        auto fast_dump() -> string_t {
+                string_t ret;
+                fast_dump(ret);
+                return ret;
+        }
 
+        // [\> P2.7: json的解析
         // json parse (most important and complex)
 public:
+        // initialization with a file, it will read and parse the content in this file (same as parse)
+        // definition at P3.5
+        json(std::ifstream);
+
+        auto operator=(std::ifstream) -> json&;
+
         friend class json_parser;
 
         auto parse(const string_t &) -> std::pair<string_t, size_t>;
@@ -977,7 +1110,7 @@ public:
 };  // class json
 
 
-// [|||] P3: 核心反序列化解析逻辑
+// [\> P3: 核心反序列化解析逻辑
 // json parser (static tool box)
 namespace {
 
@@ -985,6 +1118,7 @@ namespace {
 
 class parser {
 private:
+        // [\> P3.0: 调度函数
         // private parsing function, switch and call some parse_xxx function, be call by public parse
         // and parse_xxx return <json object : error massage>
         static auto parsing_func(const string_t &str, size_t &idx) -> std::pair<json, string_t> {
@@ -1023,7 +1157,7 @@ private:
                         default:
                                 tools::panic("development bug, something bad");  // [remove in release]
                         }
-                        return {};
+                        // 不会运行至此处
                 }
                 case '"': {
                         auto [string, err] = parse_string(str, idx);
@@ -1073,14 +1207,48 @@ private:
                 default:
                         return {{}, "未预期的字符, 语法错误, 非法的json格式"};
                 }
-        }
+        } // end function `parsing_func`
 
+        // [\> P3.1: 字符串解析
         static auto parse_string(const string_t &str, size_t &idx) -> std::pair<string_t, string_t> {
+                static const auto get_16base_ch_num = [](char ch) -> int8_t {
+                        switch (ch) {
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                        case '8':
+                        case '9':
+                                return ch-'0'+1; // actual value increased by 1
+                        case 'A':
+                        case 'B':
+                        case 'C':
+                        case 'D':
+                        case 'E':
+                        case 'F':
+                                ch+=32;
+                        case 'a':
+                        case 'b':
+                        case 'c':
+                        case 'd':
+                        case 'e':
+                        case 'f':
+                                return ch-'a'+10+1;
+                        default:
+                                return 0; // actual -1
+                        }
+                };
+                bool is_low_zone = false;
+                unsigned int point = 0;
                 string_t ret;
                 ++idx;  // we make sure that the first character is '"'
                 for (; idx<str.length(); ++idx) {
                         char ch=str[idx];
-                        switch(ch) {
+                        switch (ch) {
                         case '"':
                                 if (str[idx-1] != '\\') {
                                         return {std::move(ret), ""};
@@ -1088,98 +1256,243 @@ private:
                                 break;
                         case '\n':
                                 return {"", "'\"'未闭合, 找到行尾'\n', 非法的`string`"};
+                        case '\\': {
+                                auto i = idx+1; // declear a temp index variable, if failed, idx doesn't change, success, then idx = temp_idx
+                                if(i>=str.length()){
+                                        return {"", "'\\'后的EOF, 非法转义"};
+                                }
+                                switch(str[i]){
+                                case 'b':
+                                        ret+='\b';
+                                        break;
+                                case 'f':
+                                        ret+='\f';
+                                        break;
+                                case 'n':
+                                        ret+='\n';
+                                        break;
+                                case 'r':
+                                        ret+='\r';
+                                        break;
+                                case 't':
+                                        ret+='\t';
+                                        break;
+                                case 'u': {
+                                        ++i; // move to first bit (0~9 A~F a~f)
+                                        if(i+3>=str.length()) {
+                                                return {"", "非法的UTF-16转义, 遇到EOF"};
+                                        }
+                                        int8_t bit1=get_16base_ch_num(str[i]),
+                                               bit2=get_16base_ch_num(str[i+1]),
+                                               bit3=get_16base_ch_num(str[i+2]),
+                                               bit4=get_16base_ch_num(str[i+3]);
+                                        // 但凡有一个0, 全部为0
+                                        if(bit1*bit2*bit3*bit4 == 0){
+                                                return {"", "非法的UTF-16转义"};
+                                        }
+                                        unsigned int this_point = ((bit1-1)<<12) + ((bit2-1)<<8) + ((bit3-1)<<4) + (bit4-1);
+                                        if (this_point>=0xD800 && this_point<=0xDBFF) { // high-half zone
+                                                if(is_low_zone) {
+                                                        return {"", "出现在低位的高代理, 非法的UTF-16转义"};
+                                                }
+                                                point = this_point;
+                                                is_low_zone = true;
+                                        } else if (this_point>=0xDC00 && this_point<=0xDFFF) { // low-half zone
+                                                if(!is_low_zone) {
+                                                        return {"", "出现在高位的低代理, 非法的UTF-16转义"};
+                                                }
+                                                point = ((point-0xD800) << 10 | (this_point-0xDC00)) + 0x10000;
+                                                ret += tools::u32ch_to_u8(point);
+                                                is_low_zone = false;
+                                        } else {
+                                                ret += tools::u32ch_to_u8(this_point);
+                                        }
+                                        i+=3;
+                                        break;
+                                }
+                                case '\n':
+                                        return {"", "'\\'转义换行符'\\n'是非标准的"};
+                                default:
+                                        return {"", "'\\'转义非法"};
+                                } // end switch case of character after '\'
+                                idx=i;
+                                break;
+                        }
                         default:
                                 ret += ch;
                         }
-                        // [unfinish] ==> 处理复杂的转义和UTF-16
                 }
                 return {"", "'\"'未闭合, 找到EOF, 非法的`string`"};
-        }
+        } // end finction `parse_string`
 
+        // [\> P3.2: 数字解析状态机
         static auto parse_number(const string_t &str, size_t &idx) -> tools::tuple<long long, json_t, string_t> {
-                bool is_negative = false, find_dot = false, find_e = false;
-                string_t temp_num_literal_str;
+                typedef unsigned long long ull;
+                typedef long long ll;
+                bool is_negative = false, neg_e = false;
+                constexpr int8_t _none{0}, _dot{1}, _e{2}, _dot_and_e{3};
+                int8_t flag{_none};  // 0:none, 1:find_dot, 2:find_e, 3:find dot and e
+                ull int_part=0, dec_part=0, e_part=0;
+                int dec_digits=0;
                 char ch = str[idx];
-                if (ch == '0') {
-                        if (idx+1 < str.length()) {
-                                switch(str[idx+1]) {
-                                case '.':
-                                        temp_num_literal_str += '.';
-                                        find_dot = true;
-                                        break;
-                                case 'E':
-                                case 'e':
-                                        temp_num_literal_str += str[idx+1];
-                                        find_e = true;
-                                        break;
-                                default:
-                                        return {0, json_t::Integer, ""};
-                                }
-                        } else {
+                switch (ch) {
+                case '0':
+                        if (idx+1 >= str.length()) {
                                 return {0, json_t::Integer, ""};
                         }
-                } else if (ch=='-') {
-                        if (idx+1 < str.length()) {
-                                ch = str[idx+1];
-                                if (ch<'0' || ch>'9') {
-                                        return {0, json_t::Null, "孤立的负号'-', 非法的`number`"};
-                                }
-                        } else {
-                                return {0, json_t::Null, "孤立的负号'-', 发现EOF, 非法的`number`"};
-                        }
-                        is_negative=true;
-                        ++idx;
-                }
-                for (; idx<str.length(); ++idx) {
-                        ch = str[idx];
-                        if (ch>='0' && ch<='9') {
-                                temp_num_literal_str+=ch;
-                                continue;
-                        }
-                        switch (ch) {
-                        case '\n':
-                                if (temp_num_literal_str.back()=='.' || temp_num_literal_str.back()=='e') {
-                                        return {0, json_t::Null,
-                                                "数字以'.'或'e'结尾, 发现行尾'\n', 非法的`number`"};
-                                }
-                                // [unfinish] ==> 结束, 进行数字字面量解析
-                                goto parse_string_to_number;
-                                break;
+                        switch (str[idx+1]) {
                         case '.':
-                                if (find_dot || find_e) {
-                                        return {0, json_t::Null, "尾随多余的'.', 非法的`number`"};
-                                }
-                                find_dot=true;
+                                flag = _dot;
                                 break;
                         case 'E':
                         case 'e':
-                                if (find_e) {
-                                        return {0, json_t::Null, "尾随多余的'e', 非法的`number`"};
-                                }
-                                find_e=true;
+                                flag = _e;
                                 break;
                         default:
-                                // 这里可以直接做格式检查的, 但会让状态机的流程变乱, 多解析一次数字也没什么开销,
-                                // 算了 [unfinish] ==> 结束, 解析
+                                return {0, json_t::Integer, ""};
+                        }
+                        idx += 2;
+                        break;
+                case '+':
+                        is_negative = true;  // 后续取反
+                case '-':
+                        if (idx+1 >= str.length()) {
+                                return {0, json_t::Null, "孤立的+/-号, 发现EOF, 非法的`number`"};
+                        }
+                        ch = str[idx+1];
+                        if (ch<'0' || ch>'9') {
+                                return {0, json_t::Null, "孤立的+/-号, 非法的`number`"};
+                        }
+                        is_negative = !is_negative;  // true->false, false->true
+                        ++idx;
+                default:
+                        break;
+                }
+                for (; idx < str.length(); ++idx) {
+                        ch = str[idx];
+                        switch (ch) {
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                        case '8':
+                        case '9':
+                                switch (flag) {
+                                case _none:
+                                        int_part = int_part*10 + (ch-'0');
+                                        break;
+                                case _dot:
+                                        dec_part = dec_part*10 + (ch-'0');
+                                        ++dec_digits;
+                                        break;
+                                case _e:
+                                case _dot_and_e:
+                                        e_part = e_part*10 + (ch-'0');
+                                default:
+                                        break;
+                                }
+                                continue;
+                        case '\n':
+                                goto parse_string_to_number;
+                                break;
+                        case '.':
+                                if (flag>_none) {
+                                        return {0, json_t::Null, "多余的'.', 非法的`number`"};
+                                }
+                                flag = _dot;
+                                break;
+                        case 'E':
+                        case 'e':
+                                if (flag>_dot) {
+                                        return {0, json_t::Null, "多余的'e', 非法的`number`"};
+                                }
+                                if (str[idx-1] == '.') {
+                                        return {0, json_t::Null, "'.'后跟随的'e', 非法的number"};
+                                }
+                                flag += 2;  // none+2=e, dot+2=dot_and_e
+                                break;
+                        case '+':
+                                neg_e = true;  // 之后取反
+                        case '-':
+                                if (str[idx-1] != 'e') {
+                                        return {0, json_t::Null, "未预期的+/-号, 非法的`number`"};
+                                }
+                                neg_e = !neg_e;
+                                break;
+                        default:
+                                // 这里可以直接做格式检查的, 但会让状态机的流程变乱, 多解析一次数字也没什么开销
                                 goto parse_string_to_number;
                         }
                 }
-                if (temp_num_literal_str.back()=='.' || temp_num_literal_str.back()=='e') {
-                        return {0, json_t::Null, "数字以'.'或'e'结尾, 发现EOF, 非法的`number`"};
-                }
 parse_string_to_number:
-                // [unfinish] ==> 结束, 进行数字字面量解析
-                if (is_negative) {
-                }
                 --idx;  // idx need to stop at the last number_part character, 1.45e100
                         //                                                            ^
-                return {0xabc, json_t::Integer, ""};
-        }
+                // check
+                switch (str[idx]) {
+                case '.':
+                        return {0, json_t::Null, "数字以'.'结尾, 非法的`number`"};
+                case 'e':
+                        return {0, json_t::Null, "数字以'e'结尾, 非法的`number`"};
+                case '+':
+                        return {0, json_t::Null, "数字以'+'结尾, 非法的`number`"};
+                case '-':
+                        return {0, json_t::Null, "数字以'-'结尾, 非法的`number`"};
+                default:
+                        break;
+                }
+                ll res_mem;
+                if (flag > 0) {
+                        double &res = tools::mut_memcast<double>(&res_mem);
+                        res = (double)int_part;
+                        switch (flag) {
+                        case 1:
+                                res += (double)dec_part * tools::neg_pow_table[dec_digits];
+                                break;
+                        case 3:
+                                res += (double)dec_part * tools::neg_pow_table[dec_digits];
+                        case 2:
+                                res *= neg_e ?
+                                  e_part < tools::neg_pow_table_len ?
+                                    tools::neg_pow_table[e_part] :
+                                    0.0
+                                  : e_part < tools::pow_table_len ?
+                                    tools::pow_table[e_part] :
+                                    INFINITY;
+                        default:
+                                break;
+                        }
+                        if (is_negative) {
+                                res = -res;
+                        }
+                        return {res_mem, json_t::Float, ""};
+                } else {
+                        if (int_part > tools::LL_MAX) {
+                                if (is_negative) {
+                                        double &res = tools::mut_memcast<double>(&res_mem);
+                                        res = -(double)int_part;
+                                        return {res_mem, json_t::Float, ""};
+                                } else {
+                                        ull &res = tools::mut_memcast<ull>(&res_mem);
+                                        res = int_part;
+                                        return {res_mem, json_t::Unsign, ""};
+                                }
+                        } else {
+                                ll &res = tools::mut_memcast<ll>(&res_mem);
+                                res = (ll)int_part;
+                                return {res_mem, json_t::Integer, ""};
+                        }
+                }
+        } // end function `parse_number`
 
+        // [\> P3.3: 数组解析
         static auto parse_array(const string_t &str, size_t &idx) -> std::pair<array_t, string_t> {  // [completed]
                 ++idx;  // make sure that the first character is '['
                 array_t result;
-                bool need_comma = false;
+                bool need_comma=false;
                 for (; idx<str.length(); ++idx) {
                         char ch = str[idx];
                         switch (ch) {
@@ -1212,13 +1525,14 @@ parse_string_to_number:
                         }
                 }
                 return {{}, "未闭合的']', 发现EOF, 非法的`array`"};
-        }
+        } // end function `parse_array`
 
+        // [\> P3.4: 对象解析
         static auto parse_object(const string_t &str, size_t &idx) -> std::pair<object_t, string_t> {
                 ++idx;  // first character must be '{'
                 object_t result;
-                constexpr int part_key{0}, part_colon{1}, part_val{2}, comma_or_end{3};
-                int at_part = part_key;  // [0]key, [1]colon, [2]value, [3]comma or '}' ending
+                constexpr int8_t part_key{0}, part_colon{1}, part_val{2}, comma_or_end{3};
+                int8_t at_part {part_key};  // [0]key, [1]colon, [2]value, [3]comma or '}' ending
                 std::pair<string_t, json> temp;
                 for (; idx<str.length(); ++idx) {
                         char ch = str[idx];
@@ -1275,7 +1589,7 @@ parse_string_to_number:
                         }
                 }  // end loop for
                 return {{}, "结构不完整, 发现EOF, 非法的`object`"};
-        }
+        } // end function `parse_object`
 
 public:
         // parse json
@@ -1322,13 +1636,36 @@ public:
 
 }  // namespace
 
+// [\> P3.5: 给外部调用的封装语法糖
 
-inline auto operator""_json(const char *constr, size_t) -> json {
-        auto [temp, err, _] = parser::parse_json(constr);
+inline json::json(std::ifstream file) {
+        file.seekg(0, std::ios::end);
+        size_t json_len = (size_t)file.tellg();
+        file.seekg(0, std::ios::beg);
+        string_t str;
+        str.resize(json_len);
+        file.read(str.data(), json_len);
+        auto [temp, err, idx] = parser::parse_json(str);
         if (!err.empty()) {
-                return nullptr;
+                return;
         }
-        return std::move(temp);
+        *this = std::move(temp);
+}
+
+inline auto json::operator=(std::ifstream file) -> json& {
+        file.seekg(0, std::ios::end);
+        size_t json_len = (size_t)file.tellg();
+        file.seekg(0, std::ios::beg);
+        string_t str;
+        str.resize(json_len);
+        file.read(str.data(), json_len);
+        auto [temp, err, idx] = parser::parse_json(str);
+        if (!err.empty()) {
+                *this = nullptr;
+        } else {
+                *this = std::move(temp);
+        }
+        return *this;
 }
 
 inline auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
@@ -1355,45 +1692,70 @@ inline auto json::parse(std::ifstream file) -> std::pair<string_t, size_t> {
         return {"", idx};
 }
 
-inline auto parse(const string_t &str, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
-        auto [temp, err, idx] = parser::parse_json(str);
-        if (idx_p != nullptr) {
-                *idx_p = idx;
-        }
+inline auto operator""_json(const char *constr, size_t) -> json {
+        auto [temp, err, _] = parser::parse_json(constr);
         if (!err.empty()) {
-                if (err_p != nullptr) {
-                        *err_p = std::move(err);
-                }
                 return nullptr;
         }
-        if (err_p != nullptr) {
-                err_p->clear();
-        }
-        return temp;
+        return std::move(temp);
 }
 
-inline auto parse(std::ifstream file, string_t *err_p = nullptr, size_t *idx_p = nullptr) -> json {
+inline auto parse(const string_t &str) -> std::tuple<json, string_t, size_t> {
+        return parser::parse_json(str);
+}
+
+inline auto parse(std::ifstream file) -> std::tuple<json, string_t, size_t> {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
         string_t str;
         str.resize(json_len);
         file.read(str.data(), json_len);
-        auto [temp, err, idx] = parser::parse_json(str);
-        if (idx_p != nullptr) {
-                *idx_p = idx;
-        }
-        if (!err.empty()) {
-                if (err_p != nullptr) {
-                        *err_p = std::move(err);
-                }
-                return nullptr;
-        }
-        if (err_p != nullptr) {
-                err_p->clear();
-        }
-        return temp;
+        return parser::parse_json(str);
+}
+
+// parsing json may failed, and it return a massage and index
+// this function can check the content near the failed index
+inline auto check_failed_part(const string_t& json_text_str, size_t idx, short view_offset=20) -> string_t {
+        auto start_idx = idx >= (size_t)view_offset ? idx-view_offset : 0;
+        auto end_idx = idx+view_offset < json_text_str.length() ? idx+view_offset : json_text_str.length()-1;
+        return json_text_str.substr(start_idx, end_idx-start_idx+1);
 }
 
 
 }  // namespace hai
+
+// clang-format off
+
+
+
+// using namespace std;
+// using namespace hai;
+
+
+// auto benchmark(std::ifstream file) {
+//         file.seekg(0, std::ios::end);
+//         size_t json_len = (size_t)file.tellg();
+//         file.seekg(0, std::ios::beg);
+//         string_t str;
+//         str.resize(json_len);
+//         file.read(str.data(), json_len);
+//         for(int i=0; i<10; ++i){
+//                 parser::parse_json(str);
+//         }
+// }
+
+
+// int main() {
+//         // json a = parse(ifstream("./test/2.json"));
+//         // std::print("{}", (int)a["[cpp]"].type());
+//         auto [js, err, idx] = parser::parse_json(
+//                 R"("\uD83D\uDEg1")"
+//         );
+//         if(!err.empty()){
+//                 std::print("{} at {}\n", err, idx);
+//                 std::print("{}", check_failed_part(R"("\uD83D\uDEg1")", idx, 1));
+//                 return 1;
+//         }
+//         std::print("{}", js.fast_dump());
+// }
