@@ -2,22 +2,8 @@
     "editor.fontWeight": "normal",
     "editor.fontFamily": "'Maple Mono','Symbols Nerd Font'",
     "explorer.confirmDelete": false,
-    "explorer.confirmDragAndDrop": false,
-    "C_Cpp.intelliSenseEngine": "disabled",
-    "editor.stickyScroll.enabled": false,
     "hexeditor.columnWidth": 16,
     "hexeditor.showDecodedText": true,
-    "hexeditor.defaultEndianness": "little",
-    "hexeditor.inspectorType": "aside",
-    "editor.guides.highlightActiveIndentation": "always",
-    "workbench.tree.indent": 35,
-    "workbench.startupEditor": "none",
-    "git.confirmSync": false,
-    "clangd.onConfigChanged": "restart",
-    "clangd.inactiveRegions.useBackgroundHighlight": true,
-    "editor.unicodeHighlight.ambiguousCharacters": false,
-    "workbench.layoutControl.enabled": false,
-    "workbench.navigationControl.enabled": false,
     "terminal.integrated.fontFamily": "'Maple Mono','MesloLGS NF'",
     "workbench.secondarySideBar.defaultVisibility": "hidden",
     "window.newWindowProfile": "默认",
@@ -34,6 +20,7 @@
     "rust-analyzer.showSyntaxTree": true,
     "rust-analyzer.checkOnSave": false,
     "[cpp]": {
+        "version" : 23
     },
     "files.associations": {
         ".clang-format": "yaml",
@@ -47,12 +34,6 @@
     "python.analysis.useNearestConfiguration": true,
     "python.analysis.inlayHints.functionReturnTypes": true,
     "go.formatTool": "gofmt",
-    "terminal.integrated.smoothScrolling": true,
-    "terminal.integrated.stickyScroll.enabled": false,
-    "python.createEnvironment.trigger": "off",
-    "workbench.editor.editorActionsLocation": "titleBar",
-    "window.menuBarVisibility": "compact",
-    "window.commandCenter": false,
     "C_Cpp.errorSquiggles": "enabled",
     "C_Cpp.loggingLevel": "Debug",
     "C_Cpp.windowsErrorReportingMode": "enabled",
@@ -65,5 +46,9 @@
     "workbench.editorAssociations": {
         "{hexdiff}:/**/*.*": "hexEditor.hexedit",
         "*.svg": "default"
-    }
+    },
+    "my_test" : [
+        "\uD83D\uDE01",
+        -68418.1412e-4
+    ]
 }

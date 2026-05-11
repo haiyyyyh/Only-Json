@@ -1231,7 +1231,7 @@ private:
 
         // MARK: P3.1 字符串解析
         static auto parse_string(const string_t &str, size_t &idx) -> std::pair<string_t, string_t> {
-                static const auto get_16base_ch_num = [](char ch) -> int8_t {
+                static constexpr auto get_16base_ch_num = [](char ch) -> int8_t {
                         switch (ch) {
                         case '0':
                         case '1':
@@ -1264,7 +1264,7 @@ private:
                 };
                 bool is_low_zone = false;
                 unsigned int point = 0;
-                string_t ret;
+                string_t ret; ret.reserve(20);
                 ++idx;  // we make sure that the first character is '"'
                 for (; idx<str.length(); ++idx) {
                         char ch=str[idx];
@@ -1744,3 +1744,35 @@ inline auto check_failed_part(const string_t& json_text_str, size_t idx, short v
 
 
 }  // namespace hai
+
+// clang-format off
+
+// #include <print>
+
+using namespace std;
+using namespace hai;
+
+
+auto benchmark(string path) {
+        std::ifstream file(path);
+        file.seekg(0, std::ios::end);
+        size_t json_len = (size_t)file.tellg();
+        file.seekg(0, std::ios::beg);
+        string_t str;
+        str.resize(json_len);
+        file.read(str.data(), json_len);
+        for(int i=0; i<10; ++i){
+                parser::parse_json(str);
+        }
+}
+
+
+int main() {
+        // auto [json, err, idx] = parse(ifstream("./test/2.json"));
+        // if(!err.empty()){
+        //         std::print("{} at {}", err, idx);
+        //         return 1;
+        // }
+        // std::print("{}", json.dump());
+        benchmark("./test/big.json");
+}

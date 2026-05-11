@@ -10,7 +10,7 @@ using namespace std;
 
 int main(int argc, char* argv[]){
     if(argc!=3) return 1;
-    ifstream src("./src.cpp");
+    ifstream src("./json.cpp");
     ifstream lib("./header/json.hpp");
     if(!src.is_open() || !lib.is_open()) return -1;
     vector<string> src_buf;

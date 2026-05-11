@@ -1,5 +1,13 @@
 # developing `0.0.2`
 
+## `26.5.11`
+- only-json第一次投入使用
+- 更改了开发流程
+    - 不再将开发的src.cpp和发布的json.hpp分离
+    - 将json.cpp用于开发, 完毕后写回json.hpp (in ./header/)
+- 源码未大改, 修复了一个dump时字符串输出可能出现的小bug
+    - 原因只是switch case标签未及时跳出
+
 ## `26.5.10`
 - 更改了一些解析文件\字符串的json初始化方式
 - 小改源码结构
