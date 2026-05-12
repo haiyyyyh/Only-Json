@@ -18,14 +18,36 @@
     [| License : MIT |]
     [|  © haiyyyyh   |]
      ^^^^^^^^^^^^^^^^
-
+    
     json...and only json
+
+
+ ===\ Source BookMark
+    |     >> something like "[\> P0" in source code, for editor searching and quickly jumping
+    |- Headers
+    |- P0
+    |- P1
+    |- P2
+    |  |- P2.1
+    |  |- P2.2
+    |  |- P2.3
+    |  |- P2.4
+    |  |- P2.5
+    |  |- P2.6
+    |  `- P2.7
+    `- P3
+       |- P3.0
+       |- P3.1
+       |- P3.2
+       |- P3.3
+       |- P3.4
+       `- P3.5
 
 
 *****************************************************************************************/
 
 
-// MARK: Headers
+// [\> Headers
 
 
 #include <charconv>  // to_chars, number to string
@@ -43,10 +65,9 @@
 namespace hai {
 
 
-/*==================================================
- * MARK: P0
- * private template tools,table and functions
- *=================================================*/
+/*=======================================================
+ * [\> P0: private template tools,table and functions
+ *======================================================*/
 
 
 namespace {
@@ -405,10 +426,9 @@ auto u32ch_to_u8(unsigned int ch) -> std::string {
 }  // namespace
 
 
-/*==================================================
- * MARK: P1
- * enum and basic data container
- *=================================================*/
+/*=======================================================
+ * [\> P1: enum and basic data container
+ *======================================================*/
 
 
 // clang-format off
@@ -435,10 +455,9 @@ using object_t = std::map<string_t, json>;
 
 
 
-/*==================================================
- * MARK: P2
- * json class definition start
- *=================================================*/
+/*=======================================================
+ * [\> P2: json class definition start
+ *======================================================*/
 
 
 class json {
@@ -470,7 +489,7 @@ private:
         }
 
 
-        // MARK: P2.1 构造函数和析构函数
+        // [\> P2.1 构造函数和析构函数
         // constructor and destructor
         // (a constructor that passed parameter std::ifstream is at P2.7)
 public:
@@ -597,7 +616,7 @@ public:
         ~json() noexcept { free(); }
 
 
-        // MARK: P2.2 等于号重载
+        // [\> P2.2 等于号重载
         // assignment
         // (a assignment function that passed parameter std::ifstream is at P2.7)
 public:
@@ -752,7 +771,7 @@ public:
         }
 
 
-        // MARK: P2.3 隐式\显式转换
+        // [\> P2.3 隐式\显式转换
         // convert
 public:
         template <typename T>
@@ -852,7 +871,7 @@ public:
         }
 
 
-        // MARK: P2.4 获取内部对象的函数
+        // [\> P2.4 获取内部对象的函数
         // get
 public:
         auto type() -> json_t { return Type; }
@@ -909,7 +928,7 @@ public:
         }
 
 
-        // MARK: P2.5 容器功能函数
+        // [\> P2.5 容器功能函数
         // other operator overload
 public:
         auto operator[](unsigned long idx) -> json & {
@@ -945,7 +964,7 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        // MARK: P2.6 json的序列化
+        // [\> P2.6 json的序列化
         // for dumping function ↓↓↓
 private:
         static void string_decode_dump(const string_t &in_str, string_t &to_str) {
@@ -1108,7 +1127,7 @@ public:
                 return ret;
         }
 
-        // MARK: P2.7 json的解析
+        // [\> P2.7 json的解析
         // json parse (most important and complex)
 public:
         // initialization with a file, it will read and parse the content in this file (same as parse)
@@ -1126,10 +1145,9 @@ public:
 };  // class json
 
 
-/*==================================================
- * MARK: P3
- * 核心反序列化解析逻辑
- *=================================================*/
+/*=======================================================
+ * [\> P3: 核心反序列化解析逻辑
+ *======================================================*/
 
 // json parser (static tool box)
 namespace {
@@ -1138,7 +1156,7 @@ namespace {
 
 class parser {
 private:
-        // MARK: P3.0 调度函数
+        // [\> P3.0 调度函数
         // private parsing function, switch and call some parse_xxx function, be call by public parse
         // and parse_xxx return <json object : error massage>
         static auto parsing_func(const string_t &str, size_t &idx) -> std::pair<json, string_t> {
@@ -1229,7 +1247,7 @@ private:
                 }
         } // end function `parsing_func`
 
-        // MARK: P3.1 字符串解析
+        // [\> P3.1 字符串解析
         static auto parse_string(const string_t &str, size_t &idx) -> std::pair<string_t, string_t> {
                 static const auto get_16base_ch_num = [](char ch) -> int8_t {
                         switch (ch) {
@@ -1345,7 +1363,7 @@ private:
                 return {"", "'\"'未闭合, 找到EOF, 非法的`string`"};
         } // end finction `parse_string`
 
-        // MARK: P3.2 数字解析状态机
+        // [\> P3.2 数字解析状态机
         static auto parse_number(const string_t &str, size_t &idx) -> tools::tuple<long long, json_t, string_t> {
                 typedef unsigned long long ull;
                 typedef long long ll;
@@ -1508,7 +1526,7 @@ parse_string_to_number:
                 }
         } // end function `parse_number`
 
-        // MARK: P3.3 数组解析
+        // [\> P3.3 数组解析
         static auto parse_array(const string_t &str, size_t &idx) -> std::pair<array_t, string_t> {  // [completed]
                 ++idx;  // make sure that the first character is '['
                 array_t result;
@@ -1547,7 +1565,7 @@ parse_string_to_number:
                 return {{}, "未闭合的']', 发现EOF, 非法的`array`"};
         } // end function `parse_array`
 
-        // MARK: P3.4 对象解析
+        // [\> P3.4 对象解析
         static auto parse_object(const string_t &str, size_t &idx) -> std::pair<object_t, string_t> {
                 ++idx;  // first character must be '{'
                 object_t result;
@@ -1656,7 +1674,7 @@ public:
 
 }  // namespace
 
-// MARK  P3. 给外部调用的封装语法糖
+// [\> P3.5 给外部调用的封装语法糖
 
 inline json::json(std::ifstream file) {
         file.seekg(0, std::ios::end);

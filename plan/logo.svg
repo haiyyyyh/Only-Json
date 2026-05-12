@@ -1,20 +1,20 @@
 <?xml version="1.0" standalone="no"?>
-<svg width="1100" height="1100" viewBox="0 0 1100 1100" xmlns="http://www.w3.org/2000/svg">
+<svg x="0" y="0" width="100%" height="100%" viewBox="-500 -500 2000 2000" xmlns="http://www.w3.org/2000/svg">
 <!-- 大括号 -->
-<path d="M460 360 Q440 360 440 390 V420 Q440 450 420 450 Q440 450 440 480 V520 Q440 540 460 540"
+<path d="M460 340 Q440 340 440 370 V400 Q440 430 420 430 Q440 430 440 460 V500 Q440 520 460 520"
       fill="none" stroke="#FFD02F" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M590 360 Q610 360 610 390 V420 Q610 450 630 450 Q610 450 610 480 V520 Q610 540 590 540" 
+<path d="M590 340 Q610 340 610 370 V400 Q610 430 630 430 Q610 430 610 460 V500 Q610 520 590 520" 
       fill="none" stroke="#FFD02F" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
 
 <!-- <text x="400" y="510" font-family="Ubuntu" font-size="210" fill="#FFD02F">{</text>
 <text x="580" y="510" font-family="Ubuntu" font-size="210" fill="#FFD02F">}</text> -->
 
 <!-- 箭头 -->
-<path d="M475 513 L575 387 M575 387 L530 391 M575 387 L578 430"
+<path d="M470 490 L575 367 M575 367 L530 371 M575 367 L578 410"
       fill="none" stroke="#000000" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 
 <!-- 文字 Only -->
-<text x="310" y="680" font-family="Maple Mono" font-size="80" fill="#000000">Only</text>
+<text x="195" y="720" font-family="Maple Mono" font-size="130" fill="#000000">Only</text>
 <!-- 文字 JSON -->
-<text x="540" y="680" font-family="Maple Mono" font-size="80" fill="#FFD02F">JSON</text>
+<text x="555" y="720" font-family="Maple Mono" font-size="130" fill="#FFD02F">JSON</text>
 </svg>
