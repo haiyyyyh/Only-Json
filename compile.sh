@@ -6,11 +6,11 @@ module_dir='tool'
 cpp_v='-std=c++23'
 cflag='-fno-omit-frame-pointer -fno-exceptions -fno-rtti'
 # optimize='-O0 -g3 -fsanitize=address,undefined,leak'
-optimize='-O2'
+optimize='-O1'
 compile_module='--precompile'
 find_module='-fprebuilt-module-path=./tool'
 cc='clang++'
-lib='-stdlib=libc++'
+lib='-stdlib=libstdc++'
 
 if (( $# == 2 ))
 then
@@ -28,5 +28,6 @@ fi
 if (( $1 == 1 || $1 == 2 ))
 then
     echo "compile json"
-    $cc $cpp_v $cflag $optimize json.cpp -o test.out $lib $find_module
+    $cc $cpp_v $cflag $optimize json.cpp -o only-json.out $lib $find_module
+    $cc $cpp_v $cflag $optimize test.cpp -o nlohmann.out $lib $find_module
 fi

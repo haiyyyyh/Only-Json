@@ -18,7 +18,7 @@
     [| License : MIT |]
     [|  © haiyyyyh   |]
      ^^^^^^^^^^^^^^^^
-    
+
     json...and only json
 
 
@@ -56,9 +56,9 @@
 #include <fstream>   // ifstring
 #include <map>       // object_t
 // import depend;
-#include <string>    // string_t
-#include <vector>    // array_t
-#include <cmath>     // macro INFINITY
+#include <cmath>   // macro INFINITY
+#include <string>  // string_t
+#include <vector>  // array_t
 
 
 
@@ -73,7 +73,6 @@ namespace hai {
 namespace {
 
 namespace tools {
-
 
 // SFINAE, Integer (no bool)
 
@@ -396,29 +395,26 @@ public:
         }
 };
 
-auto u32ch_to_u8(unsigned int ch) -> std::string {
-        std::string ret;
-        ret.reserve(4);
+void u32ch_decode_dump_to_u8string(unsigned int ch, std::string &str) {
         if (ch <= 0x7F) {
                 // 1字节：0xxxxxxx
-                ret += (char)ch;
+                str += (char)ch;
         } else if (ch <= 0x7FF) {
                 // 2字节：110xxxxx 10xxxxxx
-                ret += (char)(0xC0 | ((ch >> 6) & 0x1F));  // 第1字节：110 + 高5位
-                ret += (char)(0x80 | (ch & 0x3F));         // 第2字节：10 + 低6位
+                str += (char)(0xC0 | ((ch >> 6) & 0x1F));  // 第1字节：110 + 高5位
+                str += (char)(0x80 | (ch & 0x3F));         // 第2字节：10 + 低6位
         } else if (ch <= 0xFFFF) {
                 // 3字节：1110xxxx 10xxxxxx 10xxxxxx
-                ret += (char)(0xE0 | ((ch >> 12) & 0x0F));  // 第1字节：1110 + 高4位
-                ret += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第2字节：10 + 中间6位
-                ret += (char)(0x80 | (ch & 0x3F));          // 第3字节：10 + 低6位
+                str += (char)(0xE0 | ((ch >> 12) & 0x0F));  // 第1字节：1110 + 高4位
+                str += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第2字节：10 + 中间6位
+                str += (char)(0x80 | (ch & 0x3F));          // 第3字节：10 + 低6位
         } else {
                 // 4字节：11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-                ret += (char)(0xF0 | ((ch >> 18) & 0x07));  // 第1字节：11110 + 高3位
-                ret += (char)(0x80 | ((ch >> 12) & 0x3F));  // 第2字节：10 + 次高6位
-                ret += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第3字节：10 + 中间6位
-                ret += (char)(0x80 | (ch & 0x3F));          // 第4字节：10 + 低6位
+                str += (char)(0xF0 | ((ch >> 18) & 0x07));  // 第1字节：11110 + 高3位
+                str += (char)(0x80 | ((ch >> 12) & 0x3F));  // 第2字节：10 + 次高6位
+                str += (char)(0x80 | ((ch >> 6) & 0x3F));   // 第3字节：10 + 中间6位
+                str += (char)(0x80 | (ch & 0x3F));          // 第4字节：10 + 低6位
         }
-        return ret;
 }
 
 }  // namespace tools
@@ -431,29 +427,6 @@ auto u32ch_to_u8(unsigned int ch) -> std::string {
  *======================================================*/
 
 
-// clang-format off
-
-enum class json_t {
-    Integer,
-    Unsign,
-    Float,
-    Boolean,
-    Null,
-    String,
-    Array,
-    Object
-};
-
-// clang-format on
-
-
-class json;
-
-using string_t = std::string;
-using array_t = std::vector<json>;
-using object_t = std::map<string_t, json>;
-
-
 
 /*=======================================================
  * [\> P2: json class definition start
@@ -461,26 +434,43 @@ using object_t = std::map<string_t, json>;
 
 
 class json {
+public:
+        using string_t = std::string;
+        using array_t = std::vector<json>;
+        using object_t = std::map<string_t, json>;
+        // clang-format off
+        enum class types {
+                Integer,
+                Unsign,
+                Float,
+                Boolean,
+                Null,
+                String,
+                Array,
+                Object
+        };
+        // clang-format on
+
 private:
         // 利用char固定1字节的特性, 申请一块足够大的栈内存来手动管理
         // 这属于高危操作, 我们应知道自己在做什么
         alignas(std::max_align_t) char mem_block[tools::max_sizeof<string_t, array_t, object_t>()];
-        json_t Type;
+        types Type;
 
         void free() noexcept {
                 // literal type, quickly skip
-                if (Type < json_t::String) {
+                if (Type < types::String) {
                         return;
                 }
                 // RAII类型需要析构
                 switch (Type) {
-                case json_t::String:
+                case types::String:
                         tools::mut_memcast<string_t>(mem_block).~string_t();
                         break;
-                case json_t::Array:
+                case types::Array:
                         tools::mut_memcast<array_t>(mem_block).~array_t();
                         break;
-                case json_t::Object:
+                case types::Object:
                         tools::mut_memcast<object_t>(mem_block).~object_t();
                         break;
                 default:
@@ -493,17 +483,17 @@ private:
         // constructor and destructor
         // (a constructor that passed parameter std::ifstream is at P2.7)
 public:
-        json() { Type = json_t::Null; }
+        json() { Type = types::Null; }
         // Integer match this function
         template <typename T>
                 requires(tools::IntegerOnly<T>)
         json(T i_v) noexcept {
                 if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
-                        Type = json_t::Unsign;
+                        Type = types::Unsign;
                 } else {
                         new (mem_block) long long(i_v);
-                        Type = json_t::Integer;
+                        Type = types::Integer;
                 }
         }
 
@@ -512,80 +502,80 @@ public:
                 requires(tools::FloatOnly<T>)
         json(T f_v) noexcept {
                 new (mem_block) double(f_v);
-                Type = json_t::Float;
+                Type = types::Float;
         }
 
         // bool only
         json(bool b_v) noexcept {
                 new (mem_block) bool(b_v);
-                Type = json_t::Boolean;
+                Type = types::Boolean;
         }
 
         // null
-        json(decltype(nullptr)) noexcept { Type = json_t::Null; }
+        json(decltype(nullptr)) noexcept { Type = types::Null; }
 
         // string
         json(const string_t &str_v) noexcept {
                 new (mem_block) string_t(str_v);
-                Type = json_t::String;
+                Type = types::String;
         }
         json(string_t &&str_v) noexcept {
                 new (mem_block) string_t((string_t &&)str_v);
-                Type = json_t::String;
+                Type = types::String;
         }
         json(const char *constr) noexcept {
                 new (mem_block) string_t(constr);
-                Type = json_t::String;
+                Type = types::String;
         }
 
         // list
         json(const array_t &arr_v) noexcept {
                 new (mem_block) array_t(arr_v);
-                Type = json_t::Array;
+                Type = types::Array;
         }
         json(array_t &&arr_v) noexcept {
                 new (mem_block) array_t((array_t &&)arr_v);
-                Type = json_t::Array;
+                Type = types::Array;
         }
 
         template <typename = std::enable_if<true>>
         json(std::initializer_list<json> initial_list) noexcept {
                 new (mem_block) array_t(initial_list);
-                Type = json_t::Array;
+                Type = types::Array;
         }
 
         // 嵌套对象
         json(const object_t &obj_v) noexcept {
                 new (mem_block) object_t(obj_v);
-                Type = json_t::Object;
+                Type = types::Object;
         }
         json(object_t &&obj_v) noexcept {
                 new (mem_block) object_t((object_t &&)obj_v);
-                Type = json_t::Object;
+                Type = types::Object;
         }
         // another initializer_list constructor, constructor of 'json' is ambiguous, property using this, else use
         // array initializer
         json(std::initializer_list<std::pair<const string_t, json>> initial_list) noexcept {
                 new (mem_block) object_t(initial_list);  // aka std::map<string, json>
-                Type = json_t::Object;
+                Type = types::Object;
         }
 
         // copy constructor
         json(const json &other) noexcept {
-                if (other.Type < json_t::Boolean) {
+                if (other.Type < types::Boolean) {
                         memcpy(mem_block, other.mem_block, 8);
                 } else {
                         switch (other.Type) {
-                        case json_t::Boolean:
+                        case types::Boolean:
                                 new (mem_block) bool(tools::memcast<bool>(other.mem_block));
                                 break;
-                        case json_t::String:
+                        case types::String:
                                 new (mem_block) string_t(tools::memcast<string_t>(other.mem_block));
                                 break;
-                        case json_t::Array:
+                        case types::Array:
                                 new (mem_block) array_t(tools::memcast<array_t>(other.mem_block));
                                 break;
-                        case json_t::Object:
+                        case types::Object:
                                 new (mem_block) object_t(tools::memcast<object_t>(other.mem_block));
                                 break;
                         default:
@@ -597,13 +587,13 @@ public:
         // move constructor
         json(json &&other) noexcept {
                 switch (other.Type) {
-                case json_t::String:
+                case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                case json_t::Array:
+                case types::Array:
                         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
                         break;
-                case json_t::Object:
+                case types::Object:
                         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
                         break;
                 default:
@@ -611,7 +601,7 @@ public:
                         break;
                 }
                 Type = other.Type;
-                other.Type = json_t::Null;
+                other.Type = types::Null;
         }
         ~json() noexcept { free(); }
 
@@ -623,14 +613,14 @@ public:
         // Integer match this function
         template <typename T>
                 requires(tools::IntegerOnly<T>)
-        auto operator=(T i_v) noexcept -> json& {
+        auto operator=(T i_v) noexcept -> json & {
                 free();
                 if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
-                        Type = json_t::Unsign;
+                        Type = types::Unsign;
                 } else {
                         new (mem_block) long long(i_v);
-                        Type = json_t::Integer;
+                        Type = types::Integer;
                 }
                 return *this;
         }
@@ -638,107 +628,107 @@ public:
         // Floating match this function
         template <typename T>
                 requires(tools::FloatOnly<T>)
-        auto operator=(T f_v) noexcept -> json& {
+        auto operator=(T f_v) noexcept -> json & {
                 free();
                 new (mem_block) double(f_v);
-                Type = json_t::Float;
+                Type = types::Float;
                 return *this;
         }
 
         // bool only
-        auto operator=(bool b_v) noexcept -> json& {
+        auto operator=(bool b_v) noexcept -> json & {
                 free();
                 new (mem_block) bool(b_v);
-                Type = json_t::Boolean;
+                Type = types::Boolean;
                 return *this;
         }
 
         // null
-        auto operator=(decltype(nullptr)) noexcept -> json& {
+        auto operator=(decltype(nullptr)) noexcept -> json & {
                 free();
-                Type = json_t::Null;
+                Type = types::Null;
                 return *this;
         }
 
         // string
-        auto operator=(const string_t &str_v) noexcept -> json& {
+        auto operator=(const string_t &str_v) noexcept -> json & {
                 free();
                 new (mem_block) string_t(str_v);
-                Type = json_t::String;
+                Type = types::String;
                 return *this;
         }
-        auto operator=(string_t &&str_v) noexcept -> json& {
+        auto operator=(string_t &&str_v) noexcept -> json & {
                 free();
                 new (mem_block) string_t((string_t &&)str_v);
-                Type = json_t::String;
+                Type = types::String;
                 return *this;
         }
-        auto operator=(const char *constr) noexcept -> json& {
+        auto operator=(const char *constr) noexcept -> json & {
                 free();
                 new (mem_block) string_t{constr};
-                Type = json_t::String;
+                Type = types::String;
                 return *this;
         }
 
         // list
-        auto operator=(const array_t &arr_v) noexcept -> json& {
+        auto operator=(const array_t &arr_v) noexcept -> json & {
                 free();
                 new (mem_block) array_t(arr_v);
-                Type = json_t::Array;
+                Type = types::Array;
                 return *this;
         }
-        auto operator=(array_t &&arr_v) noexcept -> json& {
+        auto operator=(array_t &&arr_v) noexcept -> json & {
                 free();
                 new (mem_block) array_t((array_t &&)arr_v);
-                Type = json_t::Array;
+                Type = types::Array;
                 return *this;
         }
 
         template <typename = std::enable_if<true>>
-        auto operator=(std::initializer_list<json> initial_list) noexcept -> json& {
+        auto operator=(std::initializer_list<json> initial_list) noexcept -> json & {
                 free();
                 new (mem_block) array_t(initial_list);
-                Type = json_t::Array;
+                Type = types::Array;
                 return *this;
         }
 
         // dict
-        auto operator=(const object_t &obj_v) noexcept -> json& {
+        auto operator=(const object_t &obj_v) noexcept -> json & {
                 free();
                 new (mem_block) object_t(obj_v);
-                Type = json_t::Object;
+                Type = types::Object;
                 return *this;
         }
-        auto operator=(object_t &&obj_v) noexcept -> json& {
+        auto operator=(object_t &&obj_v) noexcept -> json & {
                 free();
                 new (mem_block) object_t((object_t &&)obj_v);
-                Type = json_t::Object;
+                Type = types::Object;
                 return *this;
         }
-        auto operator=(std::initializer_list<std::pair<const string_t, json>> initial_list) noexcept -> json& {
+        auto operator=(std::initializer_list<std::pair<const string_t, json>> initial_list) noexcept -> json & {
                 free();
                 new (mem_block) object_t(initial_list);
-                Type = json_t::Object;
+                Type = types::Object;
                 return *this;
         }
 
         // copy
-        auto operator=(const json &other) noexcept -> json& {
+        auto operator=(const json &other) noexcept -> json & {
                 free();
-                if (other.Type < json_t::Boolean) {
+                if (other.Type < types::Boolean) {
                         memcpy(mem_block, other.mem_block, 8);
                 } else {
                         switch (other.Type) {
-                        case json_t::Boolean:
+                        case types::Boolean:
                                 memcpy(mem_block, other.mem_block, sizeof(bool));
                                 break;
-                        case json_t::String:
+                        case types::String:
                                 new (mem_block) string_t(tools::memcast<string_t>(other.mem_block));
                                 break;
-                        case json_t::Array:
+                        case types::Array:
                                 new (mem_block) array_t(tools::memcast<array_t>(other.mem_block));
                                 break;
-                        case json_t::Object:
+                        case types::Object:
                                 new (mem_block) object_t(tools::memcast<object_t>(other.mem_block));
                                 break;
                         default:
@@ -749,16 +739,16 @@ public:
                 return *this;
         }
         // move
-        auto operator=(json &&other) noexcept -> json& {
+        auto operator=(json &&other) noexcept -> json & {
                 free();
                 switch (other.Type) {
-                case json_t::String:
+                case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                case json_t::Array:
+                case types::Array:
                         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
                         break;
-                case json_t::Object:
+                case types::Object:
                         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
                         break;
                 default:
@@ -766,7 +756,7 @@ public:
                         break;
                 }
                 Type = other.Type;
-                other.Type = json_t::Null;
+                other.Type = types::Null;
                 return *this;
         }
 
@@ -775,8 +765,8 @@ public:
         // convert
 public:
         template <typename T>
-        operator T *() const {
-                if (Type != json_t::Null) {
+        operator T *() const noexcept {
+                if (Type != types::Null) {
                         tools::bad_conversion_panic("null type");
                 }
                 return nullptr;
@@ -784,43 +774,43 @@ public:
 
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
-        operator T() {
-                if (Type > json_t::Float) {
+        operator T() noexcept {
+                if (Type > types::Float) {
                         tools::bad_conversion_panic("number");
                 }
                 switch (Type) {
-                case json_t::Integer:
+                case types::Integer:
                         return (T)tools::memcast<long long>(mem_block);
-                case json_t::Float:
+                case types::Float:
                         return (T)tools::memcast<double>(mem_block);
                 default:
                         return (T)tools::memcast<unsigned long long>(mem_block);
                 }
         }
 
-        operator bool() {
-                if (Type != json_t::Boolean) {
+        operator bool() noexcept {
+                if (Type != types::Boolean) {
                         tools::bad_conversion_panic("boolean");
                 }
                 return tools::memcast<bool>(mem_block);
         }
 
-        operator string_t() {
-                if (Type != json_t::String) {
+        operator string_t() noexcept {
+                if (Type != types::String) {
                         tools::bad_conversion_panic("string");
                 }
                 return tools::memcast<string_t>(mem_block);
         }
 
-        operator array_t() {
-                if (Type != json_t::Array) {
+        operator array_t() noexcept {
+                if (Type != types::Array) {
                         tools::bad_conversion_panic("array");
                 }
                 return tools::mut_memcast<array_t>(mem_block);
         }
 
-        operator object_t() {
-                if (Type != json_t::Object) {
+        operator object_t() noexcept {
+                if (Type != types::Object) {
                         tools::bad_conversion_panic("object");
                 }
                 return tools::mut_memcast<object_t>(mem_block);
@@ -828,43 +818,43 @@ public:
 
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
-        operator const T() const {
-                if (Type > json_t::Float) {
+        operator const T() const noexcept {
+                if (Type > types::Float) {
                         tools::bad_conversion_panic("number");
                 }
                 switch (Type) {
-                case json_t::Integer:
+                case types::Integer:
                         return (T)tools::memcast<long long>(mem_block);
-                case json_t::Float:
+                case types::Float:
                         return (T)tools::memcast<double>(mem_block);
                 default:
                         return (T)tools::memcast<unsigned long long>(mem_block);
                 }
         }
 
-        operator const bool() const {
-                if (Type != json_t::Boolean) {
+        operator const bool() const noexcept {
+                if (Type != types::Boolean) {
                         tools::bad_conversion_panic("boolean");
                 }
                 return tools::memcast<bool>(mem_block);
         }
 
-        operator const string_t() const {
-                if (Type != json_t::String) {
+        operator const string_t() const noexcept {
+                if (Type != types::String) {
                         tools::bad_conversion_panic("string");
                 }
                 return tools::memcast<string_t>(mem_block);
         }
 
-        operator const array_t() const {
-                if (Type != json_t::Array) {
+        operator const array_t() const noexcept {
+                if (Type != types::Array) {
                         tools::bad_conversion_panic("array");
                 }
                 return tools::memcast<array_t>(mem_block);
         }
 
-        operator const object_t() const {
-                if (Type != json_t::Object) {
+        operator const object_t() const noexcept {
+                if (Type != types::Object) {
                         tools::bad_conversion_panic("object");
                 }
                 return tools::memcast<object_t>(mem_block);
@@ -874,10 +864,10 @@ public:
         // [\> P2.4 获取内部对象的函数
         // get
 public:
-        auto type() -> json_t { return Type; }
+        auto type() -> types { return Type; }
 
-        auto integer() const -> long long & {
-                if (Type != json_t::Integer) {
+        auto integer() const noexcept -> long long & {
+                if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
                 // tools::memcast & memcast or use const_cast<> at here all cause errors
@@ -885,43 +875,43 @@ public:
                 return *(long long *)mem_block;
         }
 
-        auto unsign() const -> unsigned long long & {
-                if (Type != json_t::Integer) {
+        auto unsign() const noexcept -> unsigned long long & {
+                if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
                 return *(unsigned long long *)mem_block;
         }
 
-        auto floating() const -> double & {
-                if (Type != json_t::Float) {
+        auto floating() const noexcept -> double & {
+                if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
                 return *(double *)mem_block;
         }
 
-        auto boolean() const -> bool & {
-                if (Type != json_t::Boolean) {
+        auto boolean() const noexcept -> bool & {
+                if (Type != types::Boolean) {
                         tools::bad_getting_panic("boolean");
                 }
                 return *(bool *)mem_block;
         }
 
-        auto string() const -> string_t & {
-                if (Type != json_t::String) {
+        auto string() const noexcept -> string_t & {
+                if (Type != types::String) {
                         tools::bad_getting_panic("string");
                 }
                 return *(string_t *)mem_block;
         }
 
-        auto array() const -> array_t & {
-                if (Type != json_t::Array) {
+        auto array() const noexcept -> array_t & {
+                if (Type != types::Array) {
                         tools::bad_getting_panic("array");
                 }
                 return *(array_t *)mem_block;
         }
 
-        auto object() const -> object_t & {
-                if (Type != json_t::Object) {
+        auto object() const noexcept -> object_t & {
+                if (Type != types::Object) {
                         tools::bad_getting_panic("object");
                 }
                 return *(object_t *)mem_block;
@@ -931,33 +921,33 @@ public:
         // [\> P2.5 容器功能函数
         // other operator overload
 public:
-        auto operator[](unsigned long idx) -> json & {
-                if (Type == json_t::Null) {
+        auto operator[](unsigned long idx) noexcept -> json & {
+                if (Type == types::Null) {
                         new (mem_block) array_t(idx + 1);
-                        Type = json_t::Array;
-                } else if (Type != json_t::Array) {
+                        Type = types::Array;
+                } else if (Type != types::Array) {
                         tools::bad_using_panic("operator[](size_t)", "array");
                 }
                 // undefined behavior (depend on the array implement)
                 return (tools::mut_memcast<array_t>(mem_block))[idx];
         }
 
-        auto operator[](const string_t &key) -> json & {
-                if (Type == json_t::Null) {
+        auto operator[](const string_t &key) noexcept -> json & {
+                if (Type == types::Null) {
                         new (mem_block) object_t();
-                        Type = json_t::Object;
-                } else if (Type != json_t::Object) {
+                        Type = types::Object;
+                } else if (Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        auto operator[](const char (&key)[]) -> json & {
-                if (Type == json_t::Null) {
+        auto operator[](const char (&key)[]) noexcept -> json & {
+                if (Type == types::Null) {
                         new (mem_block) object_t();
-                        Type = json_t::Object;
-                } else if (Type != json_t::Object) {
+                        Type = types::Object;
+                } else if (Type != types::Object) {
                         tools::bad_using_panic("operator[](string literal)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
@@ -999,32 +989,32 @@ private:
         // dump to string
         void dump(string_t &str, int indent) const noexcept {
                 switch (Type) {
-                case json_t::Integer:
+                case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
                         break;
-                case json_t::Unsign:
+                case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
                         break;
-                case json_t::Float:
+                case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
                         break;
-                case json_t::Boolean:
+                case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
                         break;
-                case json_t::Null:
+                case types::Null:
                         str += "null";
                         break;
-                case json_t::String:
+                case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                 default:
                         break;
                 }
-                if (Type == json_t::Array) {
+                if (Type == types::Array) {
                         std::vector<string_t> fields;
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
                         for (auto &item : this_array) {
-                                if (!line_break && item.Type > json_t::String) {
+                                if (!line_break && item.Type > types::String) {
                                         line_break = true;
                                 }
                                 fields.push_back({});
@@ -1050,7 +1040,7 @@ private:
                                 }
                         }
                         str += ']';
-                } else if (Type == json_t::Object) {
+                } else if (Type == types::Object) {
                         str += "{\n";
                         for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
                                 str += tools::indent_table[indent + 1];
@@ -1070,25 +1060,25 @@ private:
         // no pretty dumping (no indent and line break)
         void fast_dump(string_t &str) const noexcept {
                 switch (Type) {
-                case json_t::Integer:
+                case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
                         break;
-                case json_t::Unsign:
+                case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
                         break;
-                case json_t::Float:
+                case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
                         break;
-                case json_t::Boolean:
+                case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
                         break;
-                case json_t::Null:
+                case types::Null:
                         str += "null";
                         break;
-                case json_t::String:
+                case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                 default:
-                        if (Type == json_t::Array) {
+                        if (Type == types::Array) {
                                 std::vector<string_t> fields;
                                 auto &this_array = tools::memcast<array_t>(mem_block);
                                 str += '[';
@@ -1098,7 +1088,7 @@ private:
                                 }
                                 str.resize(str.length() - 2);
                                 str += ']';
-                        } else if (Type == json_t::Object) {
+                        } else if (Type == types::Object) {
                                 str += '{';
                                 for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
                                         string_decode_dump(key, str);
@@ -1106,7 +1096,7 @@ private:
                                         val.fast_dump(str);
                                         str += ",";
                                 }
-                                str.resize(str.size() - 2);
+                                str.resize(str.length() - 2);
                                 str += '}';
                         }
                         break;
@@ -1115,16 +1105,16 @@ private:
         }  // function `fast_dump`
 
 public:
-        auto dump() -> string_t {
+        auto dump() const noexcept -> std::string {
                 string_t ret;
                 dump(ret, 0);
-                return ret;
+                return static_cast<std::string>(ret);
         }
 
-        auto fast_dump() -> string_t {
+        auto fast_dump() const noexcept -> std::string {
                 string_t ret;
                 fast_dump(ret);
-                return ret;
+                return static_cast<std::string>(ret);
         }
 
         // [\> P2.7 json的解析
@@ -1132,34 +1122,44 @@ public:
 public:
         // initialization with a file, it will read and parse the content in this file (same as parse)
         // definition at P3.5
-        json(std::ifstream);
+        json(std::ifstream) noexcept;
 
-        auto operator=(std::ifstream) -> json&;
+        auto operator=(std::ifstream) noexcept -> json &;
 
-        friend class json_parser;
+        friend class parser;
 
-        auto parse(const string_t &) -> std::pair<string_t, size_t>;
+        auto parse(const string_t &) noexcept -> std::pair<std::string, size_t>;
 
-        auto parse(std::ifstream) -> std::pair<string_t, size_t>;
+        auto parse(std::ifstream) noexcept -> std::pair<std::string, size_t>;
 
 };  // class json
+
 
 
 /*=======================================================
  * [\> P3: 核心反序列化解析逻辑
  *======================================================*/
 
+
 // json parser (static tool box)
 namespace {
 
 // clang-format off
 
+using err_string_t = std::string;
+
 class parser {
+private:
+        using string_t = json::string_t;
+        using array_t = json::array_t;
+        using object_t = json::object_t;
+        using json_types = json::types;
+
 private:
         // [\> P3.0 调度函数
         // private parsing function, switch and call some parse_xxx function, be call by public parse
         // and parse_xxx return <json object : error massage>
-        static auto parsing_func(const string_t &str, size_t &idx) -> std::pair<json, string_t> {
+        static auto parsing_func(const std::string &str, size_t &idx) -> std::pair<json, err_string_t> {
                 json result;
                 char ch = str[idx];
                 switch (ch) {
@@ -1178,20 +1178,16 @@ private:
                 case '-': {
                         auto ret = parse_number(str, idx);
                         switch (ret.get<1>()) {
-                        case json_t::Null:
+                        case json_types::Null:
                                 return {nullptr, ret.get<2>()};
-                                break;
-                        case json_t::Integer:
+                        case json_types::Integer:
                                 return {ret.get<0>(), ""};
-                                break;
-                        case json_t::Unsign:
+                        case json_types::Unsign:
                                 result = tools::mut_memcast<unsigned long long>(&ret.get<0>());
                                 return {std::move(result), ""};
-                                break;
-                        case json_t::Float:
+                        case json_types::Float:
                                 result = tools::mut_memcast<double>(&ret.get<0>());
                                 return {std::move(result), ""};
-                                break;
                         default:
                                 tools::panic("development bug, something bad");  // [remove in release]
                         }
@@ -1200,28 +1196,28 @@ private:
                 case '"': {
                         auto [string, err] = parse_string(str, idx);
                         if (!err.empty()) {
-                                return {"", std::move(err)};
+                                return {nullptr, std::move(err)};
                         }
                         return {std::move(string), ""};
                 }
                 case '[': {
                         auto [array, err] = parse_array(str, idx);
                         if (!err.empty()) {
-                                return {{}, std::move(err)};
+                                return {nullptr, std::move(err)};
                         }
                         return {std::move(array), ""};
                 }
                 case '{': {
                         auto [object, err] = parse_object(str, idx);
                         if(!err.empty()) {
-                                return {{}, std::move(err)};
+                                return {nullptr, std::move(err)};
                         }
                         return {std::move(object), ""};
                 }
                 case 'n': {
                         // is it 'null' ?
                         if(idx+3>=str.length() || str[idx+1]!='u' || str[idx+2]!='l' || str[idx+3]!='l'){
-                                return {{}, "未预期的字符'n', 未能匹配到关键字'null', 错误"};
+                                return {nullptr, "未预期的字符'n', 未能匹配到关键字'null', 错误"};
                         }
                         idx+=3;
                         return {nullptr, ""};
@@ -1229,7 +1225,7 @@ private:
                 case 't': {
                         // is it 'true' ?
                         if(idx+3>=str.length() || str[idx+1]!='r' || str[idx+2]!='u' || str[idx+3]!='e'){
-                                return {{}, "未预期的字符't', 未能匹配到关键字'true', 错误"};
+                                return {nullptr, "未预期的字符't', 未能匹配到关键字'true', 错误"};
                         }
                         idx+=3;
                         return {true, ""};
@@ -1237,18 +1233,18 @@ private:
                 case 'f': {
                         // is it 'false' ?
                         if(idx+4>=str.length() || str[idx+1]!='a' || str[idx+2]!='l' || str[idx+3]!='s' || str[idx+4]!='e'){
-                                return {{}, "未预期的字符'f', 未能匹配到关键字'false', 错误"};
+                                return {nullptr, "未预期的字符'f', 未能匹配到关键字'false', 错误"};
                         }
                         idx+=4;
                         return {false, ""};
                 }
                 default:
-                        return {{}, "未预期的字符, 语法错误, 非法的json格式"};
+                        return {nullptr, "未预期的字符, 语法错误, 非法的json格式"};
                 }
         } // end function `parsing_func`
 
         // [\> P3.1 字符串解析
-        static auto parse_string(const string_t &str, size_t &idx) -> std::pair<string_t, string_t> {
+        static auto parse_string(const std::string &str, size_t &idx) -> std::pair<string_t, err_string_t> {
                 static const auto get_16base_ch_num = [](char ch) -> int8_t {
                         switch (ch) {
                         case '0':
@@ -1288,10 +1284,7 @@ private:
                         char ch=str[idx];
                         switch (ch) {
                         case '"':
-                                if (str[idx-1] != '\\') {
-                                        return {std::move(ret), ""};
-                                }
-                                break;
+                                return {std::move(ret), ""};
                         case '\n':
                                 return {"", "'\"'未闭合, 找到行尾'\n', 非法的`string`"};
                         case '\\': {
@@ -1300,6 +1293,15 @@ private:
                                         return {"", "'\\'后的EOF, 非法转义"};
                                 }
                                 switch(str[i]){
+                                case '"':
+                                        ret+='"';
+                                        break;
+                                case '\\':
+                                        ret+='\\';
+                                        break;
+                                case '/':
+                                        ret+='/';
+                                        break;
                                 case 'b':
                                         ret+='\b';
                                         break;
@@ -1340,10 +1342,10 @@ private:
                                                         return {"", "出现在高位的低代理, 非法的UTF-16转义"};
                                                 }
                                                 point = ((point-0xD800) << 10 | (this_point-0xDC00)) + 0x10000;
-                                                ret += tools::u32ch_to_u8(point);
+                                                tools::u32ch_decode_dump_to_u8string(point, ret);
                                                 is_low_zone = false;
                                         } else {
-                                                ret += tools::u32ch_to_u8(this_point);
+                                                tools::u32ch_decode_dump_to_u8string(this_point, ret);
                                         }
                                         i+=3;
                                         break;
@@ -1364,19 +1366,19 @@ private:
         } // end finction `parse_string`
 
         // [\> P3.2 数字解析状态机
-        static auto parse_number(const string_t &str, size_t &idx) -> tools::tuple<long long, json_t, string_t> {
-                typedef unsigned long long ull;
-                typedef long long ll;
+        static auto parse_number(const std::string &str, size_t &idx) -> tools::tuple<long long, json_types, err_string_t> {
+                typedef unsigned long long ULL;
+                typedef long long LL;
                 bool is_negative = false, neg_e = false;
                 constexpr int8_t _none{0}, _dot{1}, _e{2}, _dot_and_e{3};
                 int8_t flag{_none};  // 0:none, 1:find_dot, 2:find_e, 3:find dot and e
-                ull int_part=0, dec_part=0, e_part=0;
+                ULL int_part=0, dec_part=0, e_part=0;
                 int dec_digits=0;
                 char ch = str[idx];
                 switch (ch) {
                 case '0':
                         if (idx+1 >= str.length()) {
-                                return {0, json_t::Integer, ""};
+                                return {0, json_types::Integer, ""};
                         }
                         switch (str[idx+1]) {
                         case '.':
@@ -1387,7 +1389,7 @@ private:
                                 flag = _e;
                                 break;
                         default:
-                                return {0, json_t::Integer, ""};
+                                return {0, json_types::Integer, ""};
                         }
                         idx += 2;
                         break;
@@ -1395,11 +1397,11 @@ private:
                         is_negative = true;  // 后续取反
                 case '-':
                         if (idx+1 >= str.length()) {
-                                return {0, json_t::Null, "孤立的+/-号, 发现EOF, 非法的`number`"};
+                                return {0, json_types::Null, "孤立的+/-号, 发现EOF, 非法的`number`"};
                         }
                         ch = str[idx+1];
                         if (ch<'0' || ch>'9') {
-                                return {0, json_t::Null, "孤立的+/-号, 非法的`number`"};
+                                return {0, json_types::Null, "孤立的+/-号, 非法的`number`"};
                         }
                         is_negative = !is_negative;  // true->false, false->true
                         ++idx;
@@ -1439,17 +1441,17 @@ private:
                                 break;
                         case '.':
                                 if (flag>_none) {
-                                        return {0, json_t::Null, "多余的'.', 非法的`number`"};
+                                        return {0, json_types::Null, "多余的'.', 非法的`number`"};
                                 }
                                 flag = _dot;
                                 break;
                         case 'E':
                         case 'e':
                                 if (flag>_dot) {
-                                        return {0, json_t::Null, "多余的'e', 非法的`number`"};
+                                        return {0, json_types::Null, "多余的'e', 非法的`number`"};
                                 }
                                 if (str[idx-1] == '.') {
-                                        return {0, json_t::Null, "'.'后跟随的'e', 非法的number"};
+                                        return {0, json_types::Null, "'.'后跟随的'e', 非法的number"};
                                 }
                                 flag += 2;  // none+2=e, dot+2=dot_and_e
                                 break;
@@ -1457,7 +1459,7 @@ private:
                                 neg_e = true;  // 之后取反
                         case '-':
                                 if (str[idx-1] != 'e') {
-                                        return {0, json_t::Null, "未预期的+/-号, 非法的`number`"};
+                                        return {0, json_types::Null, "未预期的+/-号, 非法的`number`"};
                                 }
                                 neg_e = !neg_e;
                                 break;
@@ -1472,17 +1474,17 @@ parse_string_to_number:
                 // check
                 switch (str[idx]) {
                 case '.':
-                        return {0, json_t::Null, "数字以'.'结尾, 非法的`number`"};
+                        return {0, json_types::Null, "数字以'.'结尾, 非法的`number`"};
                 case 'e':
-                        return {0, json_t::Null, "数字以'e'结尾, 非法的`number`"};
+                        return {0, json_types::Null, "数字以'e'结尾, 非法的`number`"};
                 case '+':
-                        return {0, json_t::Null, "数字以'+'结尾, 非法的`number`"};
+                        return {0, json_types::Null, "数字以'+'结尾, 非法的`number`"};
                 case '-':
-                        return {0, json_t::Null, "数字以'-'结尾, 非法的`number`"};
+                        return {0, json_types::Null, "数字以'-'结尾, 非法的`number`"};
                 default:
                         break;
                 }
-                ll res_mem;
+                LL res_mem;
                 if (flag > 0) {
                         double &res = tools::mut_memcast<double>(&res_mem);
                         res = (double)int_part;
@@ -1506,28 +1508,28 @@ parse_string_to_number:
                         if (is_negative) {
                                 res = -res;
                         }
-                        return {res_mem, json_t::Float, ""};
+                        return {res_mem, json_types::Float, ""};
                 } else {
                         if (int_part > tools::LL_MAX) {
                                 if (is_negative) {
                                         double &res = tools::mut_memcast<double>(&res_mem);
                                         res = -(double)int_part;
-                                        return {res_mem, json_t::Float, ""};
+                                        return {res_mem, json_types::Float, ""};
                                 } else {
-                                        ull &res = tools::mut_memcast<ull>(&res_mem);
+                                        ULL &res = tools::mut_memcast<ULL>(&res_mem);
                                         res = int_part;
-                                        return {res_mem, json_t::Unsign, ""};
+                                        return {res_mem, json_types::Unsign, ""};
                                 }
                         } else {
-                                ll &res = tools::mut_memcast<ll>(&res_mem);
-                                res = (ll)int_part;
-                                return {res_mem, json_t::Integer, ""};
+                                LL &res = tools::mut_memcast<LL>(&res_mem);
+                                res = (LL)int_part;
+                                return {res_mem, json_types::Integer, ""};
                         }
                 }
         } // end function `parse_number`
 
         // [\> P3.3 数组解析
-        static auto parse_array(const string_t &str, size_t &idx) -> std::pair<array_t, string_t> {  // [completed]
+        static auto parse_array(const std::string &str, size_t &idx) -> std::pair<array_t, err_string_t> {  // [completed]
                 ++idx;  // make sure that the first character is '['
                 array_t result;
                 bool need_comma=false;
@@ -1566,7 +1568,7 @@ parse_string_to_number:
         } // end function `parse_array`
 
         // [\> P3.4 对象解析
-        static auto parse_object(const string_t &str, size_t &idx) -> std::pair<object_t, string_t> {
+        static auto parse_object(const std::string &str, size_t &idx) -> std::pair<object_t, err_string_t> {
                 ++idx;  // first character must be '{'
                 object_t result;
                 constexpr int8_t part_key{0}, part_colon{1}, part_val{2}, comma_or_end{3};
@@ -1631,7 +1633,7 @@ parse_string_to_number:
 
 public:
         // parse json
-        static auto parse_json(const string_t &json_text) -> std::tuple<json, string_t, size_t> {
+        static auto parse_json(const std::string& json_text) -> std::tuple<json, err_string_t, size_t> {
                 size_t idx = 0;
                 // skip the space at the start
                 for (; idx < json_text.length(); ++idx) {
@@ -1674,9 +1676,10 @@ public:
 
 }  // namespace
 
+
 // [\> P3.5 给外部调用的封装语法糖
 
-inline json::json(std::ifstream file) {
+inline json::json(std::ifstream file) noexcept {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
@@ -1685,12 +1688,13 @@ inline json::json(std::ifstream file) {
         file.read(str.data(), json_len);
         auto [temp, err, idx] = parser::parse_json(str);
         if (!err.empty()) {
+                Type = types::Null;
                 return;
         }
         *this = std::move(temp);
 }
 
-inline auto json::operator=(std::ifstream file) -> json& {
+inline auto json::operator=(std::ifstream file) noexcept -> json & {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
@@ -1699,14 +1703,14 @@ inline auto json::operator=(std::ifstream file) -> json& {
         file.read(str.data(), json_len);
         auto [temp, err, idx] = parser::parse_json(str);
         if (!err.empty()) {
-                *this = nullptr;
+                Type = types::Null;
         } else {
                 *this = std::move(temp);
         }
         return *this;
 }
 
-inline auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
+inline auto json::parse(const std::string &str) noexcept -> std::pair<err_string_t, size_t> {
         auto [temp, err, idx] = parser::parse_json(str);
         if (!err.empty()) {
                 return {std::move(err), idx};
@@ -1715,7 +1719,7 @@ inline auto json::parse(const string_t &str) -> std::pair<string_t, size_t> {
         return {"", idx};
 }
 
-inline auto json::parse(std::ifstream file) -> std::pair<string_t, size_t> {
+inline auto json::parse(std::ifstream file) noexcept -> std::pair<err_string_t, size_t> {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
@@ -1738,15 +1742,15 @@ inline auto operator""_json(const char *constr, size_t) -> json {
         return std::move(temp);
 }
 
-inline auto parse(const string_t &str) -> std::tuple<json, string_t, size_t> {
+inline auto parse(const std::string &str) -> std::tuple<json, err_string_t, size_t> {
         return parser::parse_json(str);
 }
 
-inline auto parse(std::ifstream file) -> std::tuple<json, string_t, size_t> {
+inline auto parse(std::ifstream file) -> std::tuple<json, err_string_t, size_t> {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
-        string_t str;
+        std::string str;
         str.resize(json_len);
         file.read(str.data(), json_len);
         return parser::parse_json(str);
@@ -1754,10 +1758,11 @@ inline auto parse(std::ifstream file) -> std::tuple<json, string_t, size_t> {
 
 // parsing json may failed, and it return a massage and index
 // this function can check the content near the failed index
-inline auto check_failed_part(const string_t& json_text_str, size_t idx, short view_offset=20) -> string_t {
-        auto start_idx = idx >= (size_t)view_offset ? idx-view_offset : 0;
-        auto end_idx = idx+view_offset < json_text_str.length() ? idx+view_offset : json_text_str.length()-1;
-        return json_text_str.substr(start_idx, end_idx-start_idx+1);
+inline auto check_failed_part(const std::string &json_text_str, size_t idx, short view_offset = 20)
+        -> std::string {
+        auto start_idx = idx >= (size_t)view_offset ? idx - view_offset : 0;
+        auto end_idx = idx + view_offset < json_text_str.length() ? idx + view_offset : json_text_str.length() - 1;
+        return json_text_str.substr(start_idx, end_idx - start_idx + 1);
 }
 
 
@@ -1776,7 +1781,7 @@ auto benchmark(string path) {
         file.seekg(0, std::ios::end);
         size_t json_len = (size_t)file.tellg();
         file.seekg(0, std::ios::beg);
-        string_t str;
+        std::string str;
         str.resize(json_len);
         file.read(str.data(), json_len);
         for(int i=0; i<10; ++i){
@@ -1786,11 +1791,5 @@ auto benchmark(string path) {
 
 
 int main() {
-        // auto [json, err, idx] = parse(ifstream("./test/2.json"));
-        // if(!err.empty()){
-        //         std::print("{} at {}", err, idx);
-        //         return 1;
-        // }
-        // std::print("{}", json.dump());
-        benchmark("./test/big.json");
+        benchmark("./test/big2.json");
 }

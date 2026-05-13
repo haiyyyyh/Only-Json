@@ -1,12 +1,4 @@
-./tool/depend.pcm
-
-./plan/logo.svg
-
-./plan/logo.txt
-
 ./test.out
-
-./test/*
-
-./perf.data
-./perf.data.old
+./test2.out
+./test/big.json
+./test/big2.json

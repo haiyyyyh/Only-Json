@@ -10,7 +10,7 @@
 <text x="580" y="510" font-family="Ubuntu" font-size="210" fill="#FFD02F">}</text> -->
 
 <!-- 箭头 -->
-<path d="M470 490 L575 367 M575 367 L530 371 M575 367 L578 410"
+<path d="M470 490 L575 367 M575 367 L530 370 M575 367 L580 410"
       fill="none" stroke="#000000" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 
 <!-- 文字 Only -->
