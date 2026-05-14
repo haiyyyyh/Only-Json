@@ -983,9 +983,10 @@ private:
                         case '\\':
                                 to_str += R"(\\)";
                                 break;
-                        case '/':
-                                to_str += R"(\/)";
-                                break;
+                        //: this can be remove
+                        // case '/':
+                        //         to_str += R"(\/)";
+                        //         break;
                         case 0x7F:
                                 to_str += R"(\u007F)";
                                 break;
@@ -1003,58 +1004,66 @@ private:
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
-                        break;
+                        return;
                 case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
-                        break;
+                        return;
                 case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
-                        break;
+                        return;
                 case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
-                        break;
+                        return;
                 case types::Null:
                         str += "null";
-                        break;
+                        return;
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
+                        return;
                 default:
                         break;
                 }
                 if (Type == types::Array) {
-                        std::vector<std::string> fields;
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
+                        if(this_array.empty()){
+                                str+="[]";
+                                return;
+                        }
+                        std::vector<std::string> fields;
                         for (auto &item : this_array) {
                                 if (!line_break && item.Type > types::String) {
                                         line_break = true;
                                 }
                                 fields.push_back({});
                                 item.dump(fields.back(), indent + 1);
-                                if (fields.size() != this_array.size()) {
-                                        fields.back() += ", ";
-                                }
+                                fields.back() += ", ";
                         }
                         str += '[';
-                        if (!fields.empty()) {
-                                if (!line_break) {
-                                        for (auto &item_str : fields) {
-                                                str += item_str;
-                                        }
-                                } else {
-                                        for (auto &item_str : fields) {
-                                                str += '\n';
-                                                str += tools::indent_table[indent + 1];
-                                                str += item_str;
-                                        }
-                                        str += '\n';
-                                        str += tools::indent_table[indent];
+                        if (!line_break) {
+                                for (auto &item_str : fields) {
+                                        str += item_str;
                                 }
+                                str.resize(str.length() - 2);
+                        } else {
+                                for (auto &item_str : fields) {
+                                        str += '\n';
+                                        str += tools::indent_table[indent + 1];
+                                        str += item_str;
+                                }
+                                str.resize(str.length() - 2);
+                                str += '\n';
+                                str += tools::indent_table[indent];
                         }
                         str += ']';
                 } else if (Type == types::Object) {
+                        const object_t &obj = tools::memcast<object_t>(mem_block);
+                        if(obj.empty()) {
+                                str += "{}";
+                                return;
+                        }
                         str += "{\n";
-                        for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
+                        for (auto &[key, val] : obj) {
                                 str += tools::indent_table[indent + 1];
                                 string_decode_dump(key, str);
                                 str += ": ";
@@ -1074,44 +1083,47 @@ private:
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
-                        break;
+                        return;
                 case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
-                        break;
+                        return;
                 case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
-                        break;
+                        return;
                 case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
-                        break;
+                        return;
                 case types::Null:
                         str += "null";
-                        break;
+                        return;
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
+                        return;
                 default:
-                        if (Type == types::Array) {
-                                std::vector<std::string> fields;
-                                auto &this_array = tools::memcast<array_t>(mem_block);
-                                str += '[';
-                                for (auto &item : this_array) {
-                                        item.fast_dump(str);
-                                        str += ", ";
-                                }
-                                str.resize(str.length() - 2);
-                                str += ']';
-                        } else if (Type == types::Object) {
-                                str += '{';
-                                for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
-                                        string_decode_dump(key, str);
-                                        str += ": ";
-                                        val.fast_dump(str);
-                                        str += ",";
-                                }
-                                str.resize(str.length() - 2);
-                                str += '}';
-                        }
                         break;
+                }
+                if (Type == types::Array) {
+                        auto &this_array = tools::memcast<array_t>(mem_block);
+                        str += '[';
+                        for (auto &item : this_array) {
+                                item.fast_dump(str);
+                                str += ", ";
+                        }
+                        if(!this_array.empty())
+                                str.resize(str.length() - 2);
+                        str += ']';
+                } else if (Type == types::Object) {
+                        const object_t &obj = tools::memcast<object_t>(mem_block);
+                        str += '{';
+                        for (auto &[key, val] : obj) {
+                                string_decode_dump(key, str);
+                                str += ": ";
+                                val.fast_dump(str);
+                                str += ", ";
+                        }
+                        if(!obj.empty())
+                                str.resize(str.length() - 2);
+                        str += '}';
                 }
                 return;
         }  // function `fast_dump`
@@ -1671,7 +1683,7 @@ public:
         }
 
         basic_json(std::ifstream file) noexcept {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         Type = types::Null;
                         return;
@@ -1680,7 +1692,7 @@ public:
         }
 
         auto operator=(std::ifstream file) noexcept -> basic_json & {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         Type = types::Null;
                 } else {
@@ -1699,7 +1711,7 @@ public:
         }
 
         auto parse_from(std::ifstream file) noexcept -> std::pair<err_string_t, size_t> {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         return {std::move(err), idx};
                 }
@@ -1774,5 +1786,8 @@ auto benchmark(string path) {
 
 
 int main() {
-        benchmark("./test/big2.json");
+        // benchmark("./test/big2.json");
+        json js = ifstream("./test/1.json");
+        ofstream out("./test/o.json");
+        out<<js.dump();
 }
