@@ -432,6 +432,10 @@ class basic_json {
         // MARK: P1.0: 内部类型和私有成员
         // inside container,type and private members
 public:
+        // [DEV]: remove in release
+        /* using string_t = std::string;
+        using array_t = std::vector<basic_json>;
+        using object_t = std::map<string_t, basic_json>; */
         // clang-format off
         using string_t = std::basic_string<
                 char,
@@ -773,7 +777,7 @@ public:
         }
 
 
-        // MARK: P1.3 隐式\显式转换
+        // MARK: P1.3 显式/隐式 转换
         // convert
 public:
         template <typename T>
@@ -792,11 +796,11 @@ public:
                 }
                 switch (Type) {
                 case types::Integer:
-                        return (T)tools::memcast<long long>(mem_block);
+                        return (T)tools::mut_memcast<long long>(mem_block);
                 case types::Float:
-                        return (T)tools::memcast<double>(mem_block);
+                        return (T)tools::mut_memcast<double>(mem_block);
                 default:
-                        return (T)tools::memcast<unsigned long long>(mem_block);
+                        return (T)tools::mut_memcast<unsigned long long>(mem_block);
                 }
         }
 
@@ -804,14 +808,14 @@ public:
                 if (Type != types::Boolean) {
                         tools::bad_conversion_panic("boolean");
                 }
-                return tools::memcast<bool>(mem_block);
+                return tools::mut_memcast<bool>(mem_block);
         }
 
         operator string_t() noexcept {
                 if (Type != types::String) {
                         tools::bad_conversion_panic("string");
                 }
-                return tools::memcast<string_t>(mem_block);
+                return tools::mut_memcast<string_t>(mem_block);
         }
 
         operator array_t() noexcept {
@@ -878,7 +882,7 @@ public:
 public:
         auto type() -> types { return Type; }
 
-        auto integer() const noexcept -> long long & {
+        auto number_integer() const noexcept -> long long & {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
@@ -887,14 +891,14 @@ public:
                 return *(long long *)mem_block;
         }
 
-        auto unsign() const noexcept -> unsigned long long & {
+        auto number_unsign() const noexcept -> unsigned long long & {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
                 return *(unsigned long long *)mem_block;
         }
 
-        auto floating() const noexcept -> double & {
+        auto number_floating() const noexcept -> double & {
                 if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
@@ -966,6 +970,46 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
+        auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
+                if (Type != types::Object) {
+                        tools::bad_using_panic("operator+=(pair)", "object");
+                }
+                tools::mut_memcast<object_t>(mem_block).insert(std::move(insert_pair));
+                return *this;
+        }
+
+        template <typename = std::enable_if<true>>
+        auto operator+=(basic_json other) noexcept {
+                if (Type != types::Array) {
+                        tools::bad_using_panic("operator+=(json item)", "array");
+                }
+                tools::mut_memcast<array_t>(mem_block).push_back(std::move(other));
+        }
+
+        bool operator==(const basic_json& other) const noexcept {
+                if(this->Type != other.Type)
+                        return false;
+                switch (Type) {
+                case types::Integer:
+                        return tools::memcast<long long>(mem_block)==tools::memcast<long long>(other.mem_block);
+                case types::Unsign:
+                        return tools::memcast<unsigned long long>(mem_block)==tools::memcast<unsigned long long>(other.mem_block);
+                case types::Float:
+                        return tools::memcast<double>(mem_block)==tools::memcast<double>(other.mem_block);
+                case types::Boolean:
+                        return tools::memcast<bool>(mem_block)==tools::memcast<bool>(other.mem_block);
+                case types::Null:
+                        return true;
+                case types::String:
+                        return tools::memcast<string_t>(mem_block) == tools::memcast<string_t>(other.mem_block);
+                case types::Array:
+                        return tools::memcast<array_t>(mem_block) == tools::memcast<array_t>(other.mem_block);
+                case types::Object:
+                        return tools::memcast<object_t>(mem_block) == tools::memcast<object_t>(other.mem_block);
+                }
+        }
+
+
         // MARK: P1.6 json的序列化
         // for dumping function ↓↓↓
 private:
@@ -983,9 +1027,10 @@ private:
                         case '\\':
                                 to_str += R"(\\)";
                                 break;
-                        case '/':
-                                to_str += R"(\/)";
-                                break;
+                        //: this can be remove
+                        // case '/':
+                        //         to_str += R"(\/)";
+                        //         break;
                         case 0x7F:
                                 to_str += R"(\u007F)";
                                 break;
@@ -1003,58 +1048,66 @@ private:
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
-                        break;
+                        return;
                 case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
-                        break;
+                        return;
                 case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
-                        break;
+                        return;
                 case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
-                        break;
+                        return;
                 case types::Null:
                         str += "null";
-                        break;
+                        return;
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
+                        return;
                 default:
                         break;
                 }
                 if (Type == types::Array) {
-                        std::vector<std::string> fields;
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
+                        if(this_array.empty()){
+                                str+="[]";
+                                return;
+                        }
+                        std::vector<std::string> fields;
                         for (auto &item : this_array) {
                                 if (!line_break && item.Type > types::String) {
                                         line_break = true;
                                 }
                                 fields.push_back({});
                                 item.dump(fields.back(), indent + 1);
-                                if (fields.size() != this_array.size()) {
-                                        fields.back() += ", ";
-                                }
+                                fields.back() += ", ";
                         }
                         str += '[';
-                        if (!fields.empty()) {
-                                if (!line_break) {
-                                        for (auto &item_str : fields) {
-                                                str += item_str;
-                                        }
-                                } else {
-                                        for (auto &item_str : fields) {
-                                                str += '\n';
-                                                str += tools::indent_table[indent + 1];
-                                                str += item_str;
-                                        }
-                                        str += '\n';
-                                        str += tools::indent_table[indent];
+                        if (!line_break) {
+                                for (auto &item_str : fields) {
+                                        str += item_str;
                                 }
+                                str.resize(str.length() - 2);
+                        } else {
+                                for (auto &item_str : fields) {
+                                        str += '\n';
+                                        str += tools::indent_table[indent + 1];
+                                        str += item_str;
+                                }
+                                str.resize(str.length() - 2);
+                                str += '\n';
+                                str += tools::indent_table[indent];
                         }
                         str += ']';
                 } else if (Type == types::Object) {
+                        const object_t &obj = tools::memcast<object_t>(mem_block);
+                        if(obj.empty()) {
+                                str += "{}";
+                                return;
+                        }
                         str += "{\n";
-                        for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
+                        for (auto &[key, val] : obj) {
                                 str += tools::indent_table[indent + 1];
                                 string_decode_dump(key, str);
                                 str += ": ";
@@ -1074,44 +1127,47 @@ private:
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
-                        break;
+                        return;
                 case types::Unsign:
                         str += tools::to_str(tools::memcast<unsigned long long>(mem_block));
-                        break;
+                        return;
                 case types::Float:
                         str += tools::to_str(tools::memcast<double>(mem_block));
-                        break;
+                        return;
                 case types::Boolean:
                         str += tools::memcast<bool>(mem_block) ? "true" : "false";
-                        break;
+                        return;
                 case types::Null:
                         str += "null";
-                        break;
+                        return;
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
+                        return;
                 default:
-                        if (Type == types::Array) {
-                                std::vector<std::string> fields;
-                                auto &this_array = tools::memcast<array_t>(mem_block);
-                                str += '[';
-                                for (auto &item : this_array) {
-                                        item.fast_dump(str);
-                                        str += ", ";
-                                }
-                                str.resize(str.length() - 2);
-                                str += ']';
-                        } else if (Type == types::Object) {
-                                str += '{';
-                                for (auto &[key, val] : tools::memcast<object_t>(mem_block)) {
-                                        string_decode_dump(key, str);
-                                        str += ": ";
-                                        val.fast_dump(str);
-                                        str += ",";
-                                }
-                                str.resize(str.length() - 2);
-                                str += '}';
-                        }
                         break;
+                }
+                if (Type == types::Array) {
+                        auto &this_array = tools::memcast<array_t>(mem_block);
+                        str += '[';
+                        for (auto &item : this_array) {
+                                item.fast_dump(str);
+                                str += ", ";
+                        }
+                        if(!this_array.empty())
+                                str.resize(str.length() - 2);
+                        str += ']';
+                } else if (Type == types::Object) {
+                        const object_t &obj = tools::memcast<object_t>(mem_block);
+                        str += '{';
+                        for (auto &[key, val] : obj) {
+                                string_decode_dump(key, str);
+                                str += ": ";
+                                val.fast_dump(str);
+                                str += ", ";
+                        }
+                        if(!obj.empty())
+                                str.resize(str.length() - 2);
+                        str += '}';
                 }
                 return;
         }  // function `fast_dump`
@@ -1671,7 +1727,7 @@ public:
         }
 
         basic_json(std::ifstream file) noexcept {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         Type = types::Null;
                         return;
@@ -1680,7 +1736,7 @@ public:
         }
 
         auto operator=(std::ifstream file) noexcept -> basic_json & {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         Type = types::Null;
                 } else {
@@ -1699,7 +1755,7 @@ public:
         }
 
         auto parse_from(std::ifstream file) noexcept -> std::pair<err_string_t, size_t> {
-                auto [temp, err, idx] = parse(file);
+                auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         return {std::move(err), idx};
                 }
