@@ -28,6 +28,6 @@ fi
 if (( $1 == 1 || $1 == 2 ))
 then
     echo "compile json"
-    $cc $cpp_v $cflag $optimize json.cpp -o only-json.out $lib $find_module
-    $cc $cpp_v $cflag $optimize test.cpp -o nlohmann.out $lib $find_module
+    $cc $cpp_v $cflag $optimize json.cpp -o test.out $lib $find_module
+    # $cc $cpp_v $cflag $optimize test.cpp -o nlohmann.out $lib $find_module
 fi

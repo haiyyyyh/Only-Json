@@ -1,5 +1,11 @@
 # developing `0.0.2`
 
+## `26.5.13`
+- API组织大面积重构
+- 不再使用单一的json, 而是template basic_json<>, 允许自定义分配器, json为别名
+    - 默认使用std::allocater
+- 实现逻辑小更改, 行为不变
+
 ## `26.5.11`
 - only-json第一次投入使用
 - 更改了开发流程
