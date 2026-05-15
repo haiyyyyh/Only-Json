@@ -49,14 +49,14 @@
 // MARK: Headers
 
 
-#include <charconv>  // to_chars
-#include <cmath>     // macro INFINITY
-#include <cstdio>    // fprintf for panic output
-#include <cstring>   // memcpy
-#include <fstream>   // ifstring
-#include <map>       // object_t
-#include <string>    // string_t
-#include <vector>    // array_t
+#include <charconv> // to_chars
+#include <cmath>    // macro INFINITY
+#include <cstdio>   // fprintf for panic output
+#include <cstring>  // memcpy
+#include <fstream>  // ifstring
+#include <map>      // object_t
+#include <string>   // string_t
+#include <vector>   // array_t
 
 
 
@@ -433,9 +433,9 @@ class basic_json {
         // inside container,type and private members
 public:
         // [DEV]: remove in release
-        /* using string_t = std::string;
-        using array_t = std::vector<basic_json>;
-        using object_t = std::map<string_t, basic_json>; */
+        // using string_t = std::string;
+        // using array_t = std::vector<basic_json>;
+        // using object_t = std::map<string_t, basic_json>;
         // clang-format off
         using string_t = std::basic_string<
                 char,
@@ -605,12 +605,12 @@ public:
                 case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                case types::Array:
-                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
-                        break;
-                case types::Object:
-                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
-                        break;
+                // case types::Array:
+                //         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                //         break;
+                // case types::Object:
+                //         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                //         break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
                         break;
@@ -761,12 +761,12 @@ public:
                 case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                case types::Array:
-                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
-                        break;
-                case types::Object:
-                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
-                        break;
+                // case types::Array:
+                //         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                //         break;
+                // case types::Object:
+                //         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                //         break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
                         break;
@@ -1064,10 +1064,8 @@ private:
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                         return;
-                default:
-                        break;
-                }
-                if (Type == types::Array) {
+                // clang-format off
+                case types::Array: {
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
                         if(this_array.empty()){
@@ -1100,7 +1098,9 @@ private:
                                 str += tools::indent_table[indent];
                         }
                         str += ']';
-                } else if (Type == types::Object) {
+                        break;
+                }
+                case types::Object: {
                         const object_t &obj = tools::memcast<object_t>(mem_block);
                         if(obj.empty()) {
                                 str += "{}";
@@ -1118,6 +1118,10 @@ private:
                         str += '\n';
                         str += tools::indent_table[indent];
                         str += '}';
+                }
+                // clang-format on
+                default:
+                        break;
                 }
                 return;
         }  // function `dump`
@@ -1143,10 +1147,8 @@ private:
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                         return;
-                default:
-                        break;
-                }
-                if (Type == types::Array) {
+                // clang-format off
+                case types::Array: {
                         auto &this_array = tools::memcast<array_t>(mem_block);
                         str += '[';
                         for (auto &item : this_array) {
@@ -1156,7 +1158,9 @@ private:
                         if(!this_array.empty())
                                 str.resize(str.length() - 2);
                         str += ']';
-                } else if (Type == types::Object) {
+                        break;
+                }
+                case types::Object:{
                         const object_t &obj = tools::memcast<object_t>(mem_block);
                         str += '{';
                         for (auto &[key, val] : obj) {
@@ -1168,6 +1172,10 @@ private:
                         if(!obj.empty())
                                 str.resize(str.length() - 2);
                         str += '}';
+                }
+                // clang-format on
+                default:
+                        break;
                 }
                 return;
         }  // function `fast_dump`
@@ -1188,7 +1196,7 @@ public:
 
 
         /*=======================================================
-         * MARK: P2: 核心反序列化解析逻辑
+         * MARK: P2: 反序列化解析逻辑
          *======================================================*/
 
 
@@ -1319,14 +1327,23 @@ private:
                 unsigned int point = 0;
                 string_t ret;
                 ++idx;  // we make sure that the first character is '"'
+                size_t start = idx;
+                bool is_view = false;
                 for (; idx<str.length(); ++idx) {
                         char ch=str[idx];
                         switch (ch) {
                         case '"':
+                                if(is_view) {
+                                        ret = str.substr(start, idx-start);
+                                }
                                 return {std::move(ret), ""};
                         case '\n':
                                 return {"", "'\"'未闭合, 找到行尾'\n', 非法的`string`"};
                         case '\\': {
+                                if(!is_view) {
+                                        ret = str.substr(start, idx-start);
+                                        is_view = true;
+                                }
                                 auto i = idx+1; // declear a temp index variable, if failed, idx doesn't change, success, then idx = temp_idx
                                 if(i>=str.length()){
                                         return {"", "'\\'后的EOF, 非法转义"};
@@ -1398,7 +1415,9 @@ private:
                                 break;
                         }
                         default:
-                                ret += ch;
+                                if(!is_view) {
+                                        ret += ch;
+                                }
                         }
                 }
                 return {"", "'\"'未闭合, 找到EOF, 非法的`string`"};
@@ -1830,4 +1849,5 @@ auto benchmark(string path) {
 
 
 int main() {
+        benchmark("./test/big2.json");
 }

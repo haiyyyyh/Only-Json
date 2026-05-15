@@ -12,7 +12,6 @@ CompileFlags:             # 编译标志
     - "-stdlib=libstdc++"
     - "-fno-exceptions"
     - "-fno-rtti"
-    - "-fprebuilt-module-path=./tool"
 
 InlayHints:
   Enabled: false
