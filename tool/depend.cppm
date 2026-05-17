@@ -19,7 +19,6 @@ export namespace std{
     using std::to_chars;
     using std::from_chars;
     using std::fstream;
-    using std::ios;
 }
 
 export using ::memcpy;

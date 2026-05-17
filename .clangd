@@ -14,4 +14,4 @@ CompileFlags:             # 编译标志
     - "-fno-rtti"
 
 InlayHints:
-  Enabled: false
+  Enabled: true

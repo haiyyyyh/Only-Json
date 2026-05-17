@@ -14,12 +14,12 @@
                                                                     ---- Bloated IS Sin
      =================
     [|      {↗}      |]
-    [|   only-json   |]
+    [|   Only-Json   |]
     [| License : MIT |]
     [|  © haiyyyyh   |]
      ^^^^^^^^^^^^^^^^
 
-    json...and only json
+    Nothing, but only json
 
 
  ===\ Source BookMark
@@ -54,9 +54,9 @@
 #include <cstdio>   // fprintf for panic output
 #include <cstring>  // memcpy
 #include <fstream>  // ifstring
-#include <map>      // object_t
 #include <string>   // string_t
 #include <vector>   // array_t
+#include <memory_resource>  // poll
 
 
 
@@ -416,6 +416,86 @@ void u32ch_decode_dump_to_u8string(unsigned int ch, any_string &str) {
         }
 }
 
+
+template <typename K, typename V, typename Alloc>
+class linear_map {
+private:
+    using dataT = std::pair<K, V>;
+    std::vector<dataT, Alloc> _data;
+
+public:
+    linear_map() = default;
+    linear_map(const linear_map&) = default;
+    linear_map(linear_map&& other) noexcept
+        :_data(std::move(other._data))
+    {}
+    linear_map(std::initializer_list<dataT> init) : _data(init) {}
+
+    auto operator[](K key) noexcept -> V& {
+        for(auto &[_k, _v] : _data) {
+            if(_k == key) {
+                return _v;
+            }
+        }
+        _data.push_back({std::move(key), {}});
+        return _data.back().second();
+    }
+
+    auto check_insert(const dataT& new_data) noexcept -> linear_map& {
+        for(auto &[_k, _v] : _data) {
+            if(_k == new_data.first) {
+                _v = new_data.second;
+                return *this;
+            }
+        }
+        _data.push_back(new_data);
+        return *this;
+    }
+
+    auto check_insert(dataT&& new_data) noexcept -> linear_map& {
+        for(auto &[_k, _v] : _data) {
+            if(_k == new_data.first) {
+                _v = std::move(new_data.second);
+                return *this;
+            }
+        }
+        _data.push_back(std::move(new_data));
+        return *this;
+    }
+
+    auto insert(const dataT& new_data) noexcept -> linear_map& {
+        _data.push_back(new_data);
+        return *this;
+    }
+
+    auto insert(dataT&& new_data) noexcept -> linear_map& {
+        _data.push_back(std::move(new_data));
+        return *this;
+    }
+
+    auto size() const noexcept -> size_t {
+        return _data.size();
+    }
+
+    auto data() const noexcept -> std::vector<dataT, Alloc>& {
+        return _data;
+    }
+
+    auto begin() const noexcept {
+        return _data.begin();
+    }
+
+    auto end() const noexcept {
+        return _data.end();
+    }
+
+    auto at(size_t idx) const noexcept -> V& {
+        return _data[idx].second();
+    }
+
+};
+
+
 }  // namespace tools
 
 }  // namespace
@@ -446,12 +526,12 @@ public:
                 basic_json,
                 typename std::allocator_traits<Alloc>::template rebind_alloc<basic_json>
         >;
-        using object_t = std::map<
+        using object_t = tools::linear_map<
                 string_t,
                 basic_json,
-                std::less<string_t>,
+                // std::less<string_t>,
                 typename std::allocator_traits<Alloc>::template rebind_alloc<
-                        std::pair<const string_t, basic_json>
+                        std::pair<string_t, basic_json>
                 >
         >;
         enum class types {
@@ -1543,16 +1623,16 @@ parse_string_to_number:
                         break;
                 }
                 LL res_mem;
-                if (flag > 0) {
+                if (flag != _none) {
                         double &res = tools::mut_memcast<double>(&res_mem);
                         res = (double)int_part;
                         switch (flag) {
-                        case 1:
+                        case _dot:
                                 res += (double)dec_part * tools::neg_pow_table[dec_digits];
                                 break;
-                        case 3:
+                        case _dot_and_e:
                                 res += (double)dec_part * tools::neg_pow_table[dec_digits];
-                        case 2:
+                        case _e:
                                 res *= neg_e ?
                                   e_part < tools::neg_pow_table_len ?
                                     tools::neg_pow_table[e_part] :
@@ -1817,4 +1897,57 @@ inline auto check_failed_part(const std::string &json_text_str, size_t idx, shor
 }
 
 
+template <class T>
+class pool {
+private:
+    // 全局静态内存池
+    inline static std::pmr::monotonic_buffer_resource s_pool;
+
+public:
+    using value_type = T;
+
+    pool() = default;
+    pool(const pool&) noexcept = default;
+
+    template <class U>
+    pool(const pool<U>&) noexcept {}
+
+    T* allocate(std::size_t n) {
+        return static_cast<T*>(s_pool.allocate(n * sizeof(T)));
+    }
+
+    void deallocate(T* p, std::size_t n) noexcept {
+        s_pool.deallocate(p, n * sizeof(T));
+    }
+
+    template <class U>
+    bool operator==(const pool<U>&) const noexcept {
+        return true;
+    }
+
+    template <class U>
+    bool operator!=(const pool<U>&) const noexcept {
+        return false;
+    }
+};
+
+
 }  // namespace hai
+
+// clang-format off
+// using json2 = hai::basic_json<hai::pool<void>>;
+// #include <print>
+// using namespace std;
+// using namespace hai;
+// auto benchmark(string path) {
+//         std::ifstream file(path);
+//         file.seekg(0, std::ios::end);
+//         size_t json_len = (size_t)file.tellg();
+//         file.seekg(0, std::ios::beg);
+//         std::string str;
+//         str.resize(json_len);
+//         file.read(str.data(), json_len);
+//         for(int i=0; i<10; ++i){
+//                 json2::parse(str);
+//         }
+// }

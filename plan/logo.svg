@@ -14,7 +14,7 @@
       fill="none" stroke="#000000" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 
 <!-- 文字 Only -->
-<text x="195" y="720" font-family="Maple Mono" font-size="130" fill="#000000">Only</text>
+<text x="190" y="720" font-family="Maple Mono" font-size="130" fill="#000000">Only</text>
 <!-- 文字 JSON -->
-<text x="555" y="720" font-family="Maple Mono" font-size="130" fill="#FFD02F">JSON</text>
+<text x="550" y="720" font-family="Maple Mono" font-size="130" fill="#FFD02F">Json</text>
 </svg>
