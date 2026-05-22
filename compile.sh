@@ -18,7 +18,7 @@ then
 fi
 
 cmd="$cc $cpp_v $cflag $optimize json.cpp -o test.out $lib"
-# cmd="$cc $cpp_v $cflag $optimize test.cpp -o test.out $lib"
+# cmd="$cc $cpp_v $cflag $optimize test.cpp -o test.out $lib -lyyjson"
 
 echo ${cmd}
 $cmd

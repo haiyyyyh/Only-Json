@@ -4,6 +4,7 @@
 - SAX提供了较少检查的可选项, 在保证json数据正确的情况下, 使用`parse_check_less()`可提升至 150.4~157.6ms
 - 使用DOM的only-json开发项目
 - 修复了一个崩溃bug
+- 项目结构小改
 
 ### Crash bug #004 (已解决)
 > SAX解析器的查表性能优化, 字符char 转 unsigned long long产生超级大数越界, 被ASAN拦截, libc下UB但未报错, 并且由于整个json文件没有空格, bug未暴露

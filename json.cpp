@@ -439,6 +439,7 @@ INLINE unsigned int read_4bit_of_unicode() {
                 + (bit4 - 1) + 1;
 }
 
+// MARK: parse_string()
 INLINE auto parse_string() -> const char* {
         istream.seek(); // skip '"'
         char ch;
@@ -511,7 +512,7 @@ _had_escape:
         goto _eat_ascii;
 }
 
-
+// MARK: parse_string_check_less()
 INLINE void parse_string_check_less() {
         istream.seek(); // skip '"'
         char ch;
@@ -553,6 +554,7 @@ _had_escape:
         goto _eat_ascii;
 }
 
+// MARK: parse_number()
 INLINE auto parse_number(bool check_first_ch) -> const char* {
         Uint128 int_num=0;
         Uint128 dec_num=0;
@@ -675,6 +677,7 @@ _end_by_float:
 
 public:
 
+// MARK: parse()
 auto parse() -> const char* {
         // 所有标签, 均为'_'开头
         // all of the goto lable start with '_'
@@ -833,7 +836,7 @@ _end_func:
         return "other error";
 }
 
-
+// MARK: parse_check_less()
 void parse_check_less() {
         // 所有标签, 均为'_'开头
         // all of the goto lable start with '_'

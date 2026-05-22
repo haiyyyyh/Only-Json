@@ -49,15 +49,15 @@
 // MARK: Headers
 
 
-#include <charconv> // to_chars
-#include <cmath>    // macro INFINITY
-#include <cstdio>   // fprintf for panic output
-#include <cstring>  // memcpy
-#include <fstream>  // ifstring
-#include <string>   // string_t
-#include <vector>   // array_t
+#include <charconv>  // to_chars
+#include <cmath>     // macro INFINITY
+#include <cstdio>    // fprintf for panic output
+#include <cstring>   // memcpy
+#include <fstream>   // ifstring
 #include <map>
 #include <memory_resource>  // poll
+#include <string>           // string_t
+#include <vector>           // array_t
 
 
 
@@ -421,79 +421,66 @@ void u32ch_decode_dump_to_u8string(unsigned int ch, any_string &str) {
 template <typename K, typename V, typename Alloc>
 class linear_map {
 private:
-    using dataT = std::pair<K, V>;
-    std::vector<dataT, Alloc> _data;
+        using dataT = std::pair<K, V>;
+        std::vector<dataT, Alloc> _data;
 
 public:
-    linear_map() = default;
-    linear_map(const linear_map&) = default;
-    linear_map(linear_map&& other) noexcept
-        :_data(std::move(other._data))
-    {}
-    linear_map(std::initializer_list<dataT> init) : _data(init) {}
+        linear_map() = default;
+        linear_map(const linear_map &) = default;
+        linear_map(linear_map &&other) noexcept : _data(std::move(other._data)) {}
+        linear_map(std::initializer_list<dataT> init) : _data(init) {}
 
-    auto operator[](K key) noexcept -> V& {
-        for(auto &[_k, _v] : _data) {
-            if(_k == key) {
-                return _v;
-            }
+        auto operator[](K key) noexcept -> V & {
+                for (auto &[_k, _v] : _data) {
+                        if (_k == key) {
+                                return _v;
+                        }
+                }
+                _data.push_back({std::move(key), {}});
+                return _data.back().second();
         }
-        _data.push_back({std::move(key), {}});
-        return _data.back().second();
-    }
 
-    auto check_insert(const dataT& new_data) noexcept -> linear_map& {
-        for(auto &[_k, _v] : _data) {
-            if(_k == new_data.first) {
-                _v = new_data.second;
+        auto check_insert(const dataT &new_data) noexcept -> linear_map & {
+                for (auto &[_k, _v] : _data) {
+                        if (_k == new_data.first) {
+                                _v = new_data.second;
+                                return *this;
+                        }
+                }
+                _data.push_back(new_data);
                 return *this;
-            }
         }
-        _data.push_back(new_data);
-        return *this;
-    }
 
-    auto check_insert(dataT&& new_data) noexcept -> linear_map& {
-        for(auto &[_k, _v] : _data) {
-            if(_k == new_data.first) {
-                _v = std::move(new_data.second);
+        auto check_insert(dataT &&new_data) noexcept -> linear_map & {
+                for (auto &[_k, _v] : _data) {
+                        if (_k == new_data.first) {
+                                _v = std::move(new_data.second);
+                                return *this;
+                        }
+                }
+                _data.push_back(std::move(new_data));
                 return *this;
-            }
         }
-        _data.push_back(std::move(new_data));
-        return *this;
-    }
 
-    auto insert(const dataT& new_data) noexcept -> linear_map& {
-        _data.push_back(new_data);
-        return *this;
-    }
+        auto insert(const dataT &new_data) noexcept -> linear_map & {
+                _data.push_back(new_data);
+                return *this;
+        }
 
-    auto insert(dataT&& new_data) noexcept -> linear_map& {
-        _data.push_back(std::move(new_data));
-        return *this;
-    }
+        auto insert(dataT &&new_data) noexcept -> linear_map & {
+                _data.push_back(std::move(new_data));
+                return *this;
+        }
 
-    auto size() const noexcept -> size_t {
-        return _data.size();
-    }
+        auto size() const noexcept -> size_t { return _data.size(); }
 
-    auto data() const noexcept -> std::vector<dataT, Alloc>& {
-        return _data;
-    }
+        auto data() const noexcept -> std::vector<dataT, Alloc> & { return _data; }
 
-    auto begin() const noexcept {
-        return _data.begin();
-    }
+        auto begin() const noexcept { return _data.begin(); }
 
-    auto end() const noexcept {
-        return _data.end();
-    }
+        auto end() const noexcept { return _data.end(); }
 
-    auto at(size_t idx) const noexcept -> V& {
-        return _data[idx].second();
-    }
-
+        auto at(size_t idx) const noexcept -> V & { return _data[idx].second(); }
 };
 
 
@@ -508,7 +495,7 @@ public:
  *======================================================*/
 
 
-template <typename Alloc=std::allocator<void>>
+template <typename Alloc = std::allocator<void>>
 class basic_json {
         // MARK: P1.0: 内部类型和私有成员
         // inside container,type and private members
@@ -1051,7 +1038,7 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
+        auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json & {
                 if (Type != types::Object) {
                         tools::bad_using_panic("operator+=(pair)", "object");
                 }
@@ -1067,18 +1054,19 @@ public:
                 tools::mut_memcast<array_t>(mem_block).push_back(std::move(other));
         }
 
-        bool operator==(const basic_json& other) const noexcept {
-                if(this->Type != other.Type)
+        bool operator==(const basic_json &other) const noexcept {
+                if (this->Type != other.Type)
                         return false;
                 switch (Type) {
                 case types::Integer:
-                        return tools::memcast<long long>(mem_block)==tools::memcast<long long>(other.mem_block);
+                        return tools::memcast<long long>(mem_block) == tools::memcast<long long>(other.mem_block);
                 case types::Unsign:
-                        return tools::memcast<unsigned long long>(mem_block)==tools::memcast<unsigned long long>(other.mem_block);
+                        return tools::memcast<unsigned long long>(mem_block) ==
+                               tools::memcast<unsigned long long>(other.mem_block);
                 case types::Float:
-                        return tools::memcast<double>(mem_block)==tools::memcast<double>(other.mem_block);
+                        return tools::memcast<double>(mem_block) == tools::memcast<double>(other.mem_block);
                 case types::Boolean:
-                        return tools::memcast<bool>(mem_block)==tools::memcast<bool>(other.mem_block);
+                        return tools::memcast<bool>(mem_block) == tools::memcast<bool>(other.mem_block);
                 case types::Null:
                         return true;
                 case types::String:
@@ -1145,7 +1133,7 @@ private:
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                         return;
-                // clang-format off
+                        // clang-format off
                 case types::Array: {
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
@@ -1228,7 +1216,7 @@ private:
                 case types::String:
                         string_decode_dump(tools::memcast<string_t>(mem_block), str);
                         return;
-                // clang-format off
+                        // clang-format off
                 case types::Array: {
                         auto &this_array = tools::memcast<array_t>(mem_block);
                         str += '[';
@@ -1901,35 +1889,31 @@ inline auto check_failed_part(const std::string &json_text_str, size_t idx, shor
 template <class T>
 class pool {
 private:
-    // 全局静态内存池
-    inline static std::pmr::monotonic_buffer_resource s_pool;
+        // 全局静态内存池
+        inline static std::pmr::monotonic_buffer_resource s_pool;
 
 public:
-    using value_type = T;
+        using value_type = T;
 
-    pool() = default;
-    pool(const pool&) noexcept = default;
+        pool() = default;
+        pool(const pool &) noexcept = default;
 
-    template <class U>
-    pool(const pool<U>&) noexcept {}
+        template <class U>
+        pool(const pool<U> &) noexcept {}
 
-    T* allocate(std::size_t n) {
-        return static_cast<T*>(s_pool.allocate(n * sizeof(T)));
-    }
+        T *allocate(std::size_t n) { return static_cast<T *>(s_pool.allocate(n * sizeof(T))); }
 
-    void deallocate(T* p, std::size_t n) noexcept {
-        s_pool.deallocate(p, n * sizeof(T));
-    }
+        void deallocate(T *p, std::size_t n) noexcept { s_pool.deallocate(p, n * sizeof(T)); }
 
-    template <class U>
-    bool operator==(const pool<U>&) const noexcept {
-        return true;
-    }
+        template <class U>
+        bool operator==(const pool<U> &) const noexcept {
+                return true;
+        }
 
-    template <class U>
-    bool operator!=(const pool<U>&) const noexcept {
-        return false;
-    }
+        template <class U>
+        bool operator!=(const pool<U> &) const noexcept {
+                return false;
+        }
 };
 
 
