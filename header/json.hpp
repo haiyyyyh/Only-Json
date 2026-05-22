@@ -56,6 +56,7 @@
 #include <fstream>  // ifstring
 #include <string>   // string_t
 #include <vector>   // array_t
+#include <map>
 #include <memory_resource>  // poll
 
 
@@ -507,7 +508,7 @@ public:
  *======================================================*/
 
 
-template <class Alloc = std::allocator<void>>
+template <typename Alloc=std::allocator<void>>
 class basic_json {
         // MARK: P1.0: 内部类型和私有成员
         // inside container,type and private members
@@ -526,12 +527,12 @@ public:
                 basic_json,
                 typename std::allocator_traits<Alloc>::template rebind_alloc<basic_json>
         >;
-        using object_t = tools::linear_map<
+        using object_t = std::map<
                 string_t,
                 basic_json,
-                // std::less<string_t>,
+                std::less<string_t>,
                 typename std::allocator_traits<Alloc>::template rebind_alloc<
-                        std::pair<string_t, basic_json>
+                        std::pair<const string_t, basic_json>
                 >
         >;
         enum class types {
@@ -685,12 +686,12 @@ public:
                 case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                // case types::Array:
-                //         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
-                //         break;
-                // case types::Object:
-                //         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
-                //         break;
+                case types::Array:
+                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                        break;
+                case types::Object:
+                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                        break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
                         break;
@@ -841,12 +842,12 @@ public:
                 case types::String:
                         new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
-                // case types::Array:
-                //         new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
-                //         break;
-                // case types::Object:
-                //         new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
-                //         break;
+                case types::Array:
+                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                        break;
+                case types::Object:
+                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                        break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
                         break;
@@ -1933,21 +1934,3 @@ public:
 
 
 }  // namespace hai
-
-// clang-format off
-// using json2 = hai::basic_json<hai::pool<void>>;
-// #include <print>
-// using namespace std;
-// using namespace hai;
-// auto benchmark(string path) {
-//         std::ifstream file(path);
-//         file.seekg(0, std::ios::end);
-//         size_t json_len = (size_t)file.tellg();
-//         file.seekg(0, std::ios::beg);
-//         std::string str;
-//         str.resize(json_len);
-//         file.read(str.data(), json_len);
-//         for(int i=0; i<10; ++i){
-//                 json2::parse(str);
-//         }
-// }
