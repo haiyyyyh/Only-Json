@@ -1,6 +1,8 @@
-// #include "./header/json.hpp"
-#include <yyjson.h>
+#include "./header/json.hpp"
+// #include <yyjson.h>
 #include <fstream>
+
+using namespace hai;
 
 auto benchmark(const char* path) {
     std::ifstream file(path);
@@ -11,14 +13,10 @@ auto benchmark(const char* path) {
     str.resize(json_len);
     file.read(str.data(), json_len);
     for(int i=0; i<10; ++i){
-        yyjson_doc* a = yyjson_read(str.c_str(), str.length(), YYJSON_READ_INSITU);
-        yyjson_doc_free(a);
+        json_with_pool<hai::pool>::parse(str);
     }
 }
 
-// using namespace hai;
-
 int main() {
-    // benchmark("./test/big2.json");
     benchmark("./test/big2.json");
 }

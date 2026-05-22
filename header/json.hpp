@@ -54,7 +54,9 @@
 #include <cstdio>    // fprintf for panic output
 #include <cstring>   // memcpy
 #include <fstream>   // ifstring
+#include <functional>
 #include <map>
+#include <memory>
 #include <memory_resource>  // poll
 #include <string>           // string_t
 #include <vector>           // array_t
@@ -418,6 +420,7 @@ void u32ch_decode_dump_to_u8string(unsigned int ch, any_string &str) {
 }
 
 
+// try to improve speed
 template <typename K, typename V, typename Alloc>
 class linear_map {
 private:
@@ -495,7 +498,18 @@ public:
  *======================================================*/
 
 
-template <typename Alloc = std::allocator<void>>
+// clang-format off
+
+// stringT: require 1 argument, <allocator>
+// arrayT: require 2 argument, <item_type, allocator>
+// objectT: require 3 argument, <key_type, value_type, allocator>
+// AllocT: require 1 argument, <data_type>
+template <
+        template <typename> typename stringT, // ofjaas
+        template <typename, typename...> typename arrayT,
+        template <typename, typename, typename...> typename objectT,
+        template <typename> typename AllocT
+>
 class basic_json {
         // MARK: P1.0: 内部类型和私有成员
         // inside container,type and private members
@@ -504,24 +518,9 @@ public:
         // using string_t = std::string;
         // using array_t = std::vector<basic_json>;
         // using object_t = std::map<string_t, basic_json>;
-        // clang-format off
-        using string_t = std::basic_string<
-                char,
-                std::char_traits<char>,
-                typename std::allocator_traits<Alloc>::template rebind_alloc<char>
-        >;
-        using array_t = std::vector<
-                basic_json,
-                typename std::allocator_traits<Alloc>::template rebind_alloc<basic_json>
-        >;
-        using object_t = std::map<
-                string_t,
-                basic_json,
-                std::less<string_t>,
-                typename std::allocator_traits<Alloc>::template rebind_alloc<
-                        std::pair<const string_t, basic_json>
-                >
-        >;
+        using string_t = stringT<AllocT<char>>;
+        using array_t = arrayT<basic_json, AllocT<basic_json>>;
+        using object_t = objectT<string_t, basic_json, AllocT<std::pair<const string_t, basic_json>>>;
         enum class types {
                 Integer,
                 Unsign,
@@ -1861,8 +1860,21 @@ public:
  *======================================================*/
 
 
-// class json is basic_json<std::allocater<void>>
-using json = basic_json<>;
+// for only-json basic_json template arguments contract
+// wrapped some STL container
+
+// string, require one argument, the allocator
+template <typename Alloc>
+using std_string_wrapping = std::basic_string<char, std::char_traits<char>, Alloc>;
+
+// object, require three arguments: keytype, valuetype, allocater
+template <typename k, typename v, typename all>
+using std_map_wrapping = std::map<k, v, std::less<k>, all>;
+
+using json = basic_json<std_string_wrapping, std::vector, std_map_wrapping, std::allocator>;
+
+template <template <typename> typename Alc>
+using json_with_pool = basic_json<std_string_wrapping, std::vector, std_map_wrapping, Alc>;
 
 
 // syntactic sugar

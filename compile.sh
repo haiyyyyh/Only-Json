@@ -17,8 +17,8 @@ then
     optimize='-O2 -DNDEBUG -g'
 fi
 
-cmd="$cc $cpp_v $cflag $optimize json.cpp -o test.out $lib"
-# cmd="$cc $cpp_v $cflag $optimize test.cpp -o test.out $lib -lyyjson"
+# cmd="$cc $cpp_v $cflag $optimize json.cpp -o test.out $lib"
+cmd="$cc $cpp_v $cflag $optimize test.cpp -o test.out $lib"
 
 echo ${cmd}
 $cmd
