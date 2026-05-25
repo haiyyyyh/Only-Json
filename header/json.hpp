@@ -1,8 +1,7 @@
 /****************************************************************************************
-
                                                              _____________________
-                                                            |     by haiyyyyh     |
-                                                            |   version v0.0.3    |
+  https://github.com/haiyyyyh                               |     by haiyyyyh     |
+     only-json::DOM parser                                  |   version v0.4.0    |
                                                             ``````````````````````
                              _      _
  //|||\\  //\\    \\  ||     \\    //                \\  //||\\   //|||\\  //\\    \\
@@ -41,7 +40,6 @@
        |- P2.3
        |- P2.4
        `- P2.5
-
 
 *****************************************************************************************/
 
@@ -139,21 +137,21 @@ constexpr auto max_sizeof() -> unsigned long {
 }
 
 template <typename T>
-auto mut_memcast(void *mem) -> T & {
-        return *reinterpret_cast<T *>(mem);
+auto mut_memcast(void* mem) -> T& {
+        return *reinterpret_cast<T*>(mem);
 }
 
 template <typename T>
-auto memcast(const void *mem) -> const T & {
-        return *reinterpret_cast<const T *>(mem);
+auto memcast(const void* mem) -> const T& {
+        return *reinterpret_cast<const T*>(mem);
 }
 
-void panic(const char *msg) {
+void panic(const char* msg) {
         fprintf(stderr, "\e[31;1m[panic] \e[34;3monly-json\e[0m : %s\n", msg);
         abort();
 }
 
-void bad_using_panic(const char *func_name, const char *on_type) {
+void bad_using_panic(const char* func_name, const char* on_type) {
         fprintf(stderr,
                 "\e[31;1m[panic] \e[34;3monly-json\e[0m : "
                 "\e[33;1;4mtype check failed\e[0m"
@@ -162,7 +160,7 @@ void bad_using_panic(const char *func_name, const char *on_type) {
         abort();
 }
 
-void bad_getting_panic(const char *msg) {
+void bad_getting_panic(const char* msg) {
         fprintf(stderr,
                 "\e[31;1m[panic] \e[34;3monly-json\e[0m : "
                 "\e[33;1;4mtype check failed\e[0m"
@@ -171,7 +169,7 @@ void bad_getting_panic(const char *msg) {
         abort();
 }
 
-void bad_conversion_panic(const char *to_type) {
+void bad_conversion_panic(const char* to_type) {
         fprintf(stderr,
                 "\e[31;1m[panic] \e[34;3monly-json\e[0m : "
                 "\e[33;1;4mbad conversion\e[0m"
@@ -209,7 +207,7 @@ const char* table[201] = {
 
 char buf[22];
 
-auto to_str(long long num) -> const char * {
+auto to_str(long long num) -> const char* {
         if (num <= 100 && num >= -100) {
                 return table[num + 100];
         }
@@ -218,7 +216,7 @@ auto to_str(long long num) -> const char * {
         return buf;
 }
 
-auto to_str(unsigned long long num) -> const char * {
+auto to_str(unsigned long long num) -> const char* {
         if (num <= 100) {
                 return table[num + 100];
         }
@@ -227,7 +225,7 @@ auto to_str(unsigned long long num) -> const char * {
         return buf;
 }
 
-auto to_str(double num) -> const char * {
+auto to_str(double num) -> const char* {
         auto [p, err] = std::to_chars(buf, buf + 20, num);
         *p = '\0';
         return buf;
@@ -381,23 +379,23 @@ private:
         struct Tag {};
 
         template <int idx>
-        auto &get_item(Tag<idx>) {
+        auto& get_item(Tag<idx>) {
                 return _other.template get<idx - 1>();
         }
 
-        auto &get_item(Tag<0>) { return _0; }
+        auto& get_item(Tag<0>) { return _0; }
 
 public:
         tuple() {}
         tuple(T0 _t0, Args... _other_t) : _0(_t0), _other(_other_t...) {}
         template <int idx>
-        auto &get() {
+        auto& get() {
                 return this->get_item(Tag<idx>{});
         }
 };
 
 template <typename any_string>
-void u32ch_decode_dump_to_u8string(unsigned int ch, any_string &str) {
+void u32ch_decode_dump_to_u8string(unsigned int ch, any_string& str) {
         if (ch <= 0x7F) {
                 // 1字节：0xxxxxxx
                 str += (char)ch;
@@ -429,12 +427,12 @@ private:
 
 public:
         linear_map() = default;
-        linear_map(const linear_map &) = default;
-        linear_map(linear_map &&other) noexcept : _data(std::move(other._data)) {}
+        linear_map(const linear_map&) = default;
+        linear_map(linear_map&& other) noexcept : _data(std::move(other._data)) {}
         linear_map(std::initializer_list<dataT> init) : _data(init) {}
 
-        auto operator[](K key) noexcept -> V & {
-                for (auto &[_k, _v] : _data) {
+        auto operator[](K key) noexcept -> V& {
+                for (auto& [_k, _v] : _data) {
                         if (_k == key) {
                                 return _v;
                         }
@@ -443,8 +441,8 @@ public:
                 return _data.back().second();
         }
 
-        auto check_insert(const dataT &new_data) noexcept -> linear_map & {
-                for (auto &[_k, _v] : _data) {
+        auto check_insert(const dataT& new_data) noexcept -> linear_map& {
+                for (auto& [_k, _v] : _data) {
                         if (_k == new_data.first) {
                                 _v = new_data.second;
                                 return *this;
@@ -454,8 +452,8 @@ public:
                 return *this;
         }
 
-        auto check_insert(dataT &&new_data) noexcept -> linear_map & {
-                for (auto &[_k, _v] : _data) {
+        auto check_insert(dataT&& new_data) noexcept -> linear_map& {
+                for (auto& [_k, _v] : _data) {
                         if (_k == new_data.first) {
                                 _v = std::move(new_data.second);
                                 return *this;
@@ -465,25 +463,25 @@ public:
                 return *this;
         }
 
-        auto insert(const dataT &new_data) noexcept -> linear_map & {
+        auto insert(const dataT& new_data) noexcept -> linear_map& {
                 _data.push_back(new_data);
                 return *this;
         }
 
-        auto insert(dataT &&new_data) noexcept -> linear_map & {
+        auto insert(dataT&& new_data) noexcept -> linear_map& {
                 _data.push_back(std::move(new_data));
                 return *this;
         }
 
         auto size() const noexcept -> size_t { return _data.size(); }
 
-        auto data() const noexcept -> std::vector<dataT, Alloc> & { return _data; }
+        auto data() const noexcept -> std::vector<dataT, Alloc>& { return _data; }
 
         auto begin() const noexcept { return _data.begin(); }
 
         auto end() const noexcept { return _data.end(); }
 
-        auto at(size_t idx) const noexcept -> V & { return _data[idx].second(); }
+        auto at(size_t idx) const noexcept -> V& { return _data[idx].second(); }
 };
 
 
@@ -597,26 +595,26 @@ public:
         basic_json(decltype(nullptr)) noexcept { Type = types::Null; }
 
         // string
-        basic_json(const string_t &str_v) noexcept {
+        basic_json(const string_t& str_v) noexcept {
                 new (mem_block) string_t(str_v);
                 Type = types::String;
         }
-        basic_json(string_t &&str_v) noexcept {
-                new (mem_block) string_t((string_t &&)str_v);
+        basic_json(string_t&& str_v) noexcept {
+                new (mem_block) string_t((string_t&&)str_v);
                 Type = types::String;
         }
-        basic_json(const char *constr) noexcept {
+        basic_json(const char* constr) noexcept {
                 new (mem_block) string_t(constr);
                 Type = types::String;
         }
 
         // list
-        basic_json(const array_t &arr_v) noexcept {
+        basic_json(const array_t& arr_v) noexcept {
                 new (mem_block) array_t(arr_v);
                 Type = types::Array;
         }
-        basic_json(array_t &&arr_v) noexcept {
-                new (mem_block) array_t((array_t &&)arr_v);
+        basic_json(array_t&& arr_v) noexcept {
+                new (mem_block) array_t((array_t&&)arr_v);
                 Type = types::Array;
         }
 
@@ -627,12 +625,12 @@ public:
         }
 
         // 嵌套对象
-        basic_json(const object_t &obj_v) noexcept {
+        basic_json(const object_t& obj_v) noexcept {
                 new (mem_block) object_t(obj_v);
                 Type = types::Object;
         }
-        basic_json(object_t &&obj_v) noexcept {
-                new (mem_block) object_t((object_t &&)obj_v);
+        basic_json(object_t&& obj_v) noexcept {
+                new (mem_block) object_t((object_t&&)obj_v);
                 Type = types::Object;
         }
         // another initializer_list constructor, constructor of 'json' is ambiguous, property using this, else use
@@ -643,7 +641,7 @@ public:
         }
 
         // copy constructor
-        basic_json(const basic_json &other) noexcept {
+        basic_json(const basic_json& other) noexcept {
                 if (other.Type < types::Boolean) {
                         memcpy(mem_block, other.mem_block, 8);
                 } else {
@@ -667,16 +665,16 @@ public:
                 Type = other.Type;
         }
         // move constructor
-        basic_json(basic_json &&other) noexcept {
+        basic_json(basic_json&& other) noexcept {
                 switch (other.Type) {
                 case types::String:
-                        new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
+                        new (mem_block) string_t((string_t&&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
                 case types::Array:
-                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                        new (mem_block) array_t((array_t&&)tools::mut_memcast<array_t>(other.mem_block));
                         break;
                 case types::Object:
-                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                        new (mem_block) object_t((object_t&&)tools::mut_memcast<object_t>(other.mem_block));
                         break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
@@ -695,7 +693,7 @@ public:
         // Integer match this function
         template <typename T>
                 requires(tools::IntegerOnly<T>)
-        auto operator=(T i_v) noexcept -> basic_json & {
+        auto operator=(T i_v) noexcept -> basic_json& {
                 free();
                 if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
@@ -710,7 +708,7 @@ public:
         // Floating match this function
         template <typename T>
                 requires(tools::FloatOnly<T>)
-        auto operator=(T f_v) noexcept -> basic_json & {
+        auto operator=(T f_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) double(f_v);
                 Type = types::Float;
@@ -718,7 +716,7 @@ public:
         }
 
         // bool only
-        auto operator=(bool b_v) noexcept -> basic_json & {
+        auto operator=(bool b_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) bool(b_v);
                 Type = types::Boolean;
@@ -726,26 +724,26 @@ public:
         }
 
         // null
-        auto operator=(decltype(nullptr)) noexcept -> basic_json & {
+        auto operator=(decltype(nullptr)) noexcept -> basic_json& {
                 free();
                 Type = types::Null;
                 return *this;
         }
 
         // string
-        auto operator=(const string_t &str_v) noexcept -> basic_json & {
+        auto operator=(const string_t& str_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) string_t(str_v);
                 Type = types::String;
                 return *this;
         }
-        auto operator=(string_t &&str_v) noexcept -> basic_json & {
+        auto operator=(string_t&& str_v) noexcept -> basic_json& {
                 free();
-                new (mem_block) string_t((string_t &&)str_v);
+                new (mem_block) string_t((string_t&&)str_v);
                 Type = types::String;
                 return *this;
         }
-        auto operator=(const char *constr) noexcept -> basic_json & {
+        auto operator=(const char* constr) noexcept -> basic_json& {
                 free();
                 new (mem_block) string_t{constr};
                 Type = types::String;
@@ -753,21 +751,21 @@ public:
         }
 
         // list
-        auto operator=(const array_t &arr_v) noexcept -> basic_json & {
+        auto operator=(const array_t& arr_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) array_t(arr_v);
                 Type = types::Array;
                 return *this;
         }
-        auto operator=(array_t &&arr_v) noexcept -> basic_json & {
+        auto operator=(array_t&& arr_v) noexcept -> basic_json& {
                 free();
-                new (mem_block) array_t((array_t &&)arr_v);
+                new (mem_block) array_t((array_t&&)arr_v);
                 Type = types::Array;
                 return *this;
         }
 
         template <typename = std::enable_if<true>>
-        auto operator=(std::initializer_list<basic_json> initial_list) noexcept -> basic_json & {
+        auto operator=(std::initializer_list<basic_json> initial_list) noexcept -> basic_json& {
                 free();
                 new (mem_block) array_t(initial_list);
                 Type = types::Array;
@@ -775,20 +773,20 @@ public:
         }
 
         // dict
-        auto operator=(const object_t &obj_v) noexcept -> basic_json & {
+        auto operator=(const object_t& obj_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) object_t(obj_v);
                 Type = types::Object;
                 return *this;
         }
-        auto operator=(object_t &&obj_v) noexcept -> basic_json & {
+        auto operator=(object_t&& obj_v) noexcept -> basic_json& {
                 free();
-                new (mem_block) object_t((object_t &&)obj_v);
+                new (mem_block) object_t((object_t&&)obj_v);
                 Type = types::Object;
                 return *this;
         }
         auto operator=(std::initializer_list<std::pair<const string_t, basic_json>> initial_list) noexcept
-                -> basic_json & {
+                -> basic_json& {
                 free();
                 new (mem_block) object_t(initial_list);
                 Type = types::Object;
@@ -796,7 +794,7 @@ public:
         }
 
         // copy
-        auto operator=(const basic_json &other) noexcept -> basic_json & {
+        auto operator=(const basic_json& other) noexcept -> basic_json& {
                 free();
                 if (other.Type < types::Boolean) {
                         memcpy(mem_block, other.mem_block, 8);
@@ -822,17 +820,17 @@ public:
                 return *this;
         }
         // move
-        auto operator=(basic_json &&other) noexcept -> basic_json & {
+        auto operator=(basic_json&& other) noexcept -> basic_json& {
                 free();
                 switch (other.Type) {
                 case types::String:
-                        new (mem_block) string_t((string_t &&)tools::mut_memcast<string_t>(other.mem_block));
+                        new (mem_block) string_t((string_t&&)tools::mut_memcast<string_t>(other.mem_block));
                         break;
                 case types::Array:
-                        new (mem_block) array_t((array_t &&)tools::mut_memcast<array_t>(other.mem_block));
+                        new (mem_block) array_t((array_t&&)tools::mut_memcast<array_t>(other.mem_block));
                         break;
                 case types::Object:
-                        new (mem_block) object_t((object_t &&)tools::mut_memcast<object_t>(other.mem_block));
+                        new (mem_block) object_t((object_t&&)tools::mut_memcast<object_t>(other.mem_block));
                         break;
                 default:
                         memcpy(mem_block, other.mem_block, sizeof(mem_block));
@@ -848,7 +846,7 @@ public:
         // convert
 public:
         template <typename T>
-        operator T *() const noexcept {
+        operator T*() const noexcept {
                 if (Type != types::Null) {
                         tools::bad_conversion_panic("null type");
                 }
@@ -949,62 +947,62 @@ public:
 public:
         auto type() -> types { return Type; }
 
-        auto number_integer() const noexcept -> long long & {
+        auto number_integer() const noexcept -> long long& {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
                 // tools::memcast & memcast or use const_cast<> at here all cause errors
                 // so use C-style unsafe conversion
-                return *(long long *)mem_block;
+                return *(long long*)mem_block;
         }
 
-        auto number_unsign() const noexcept -> unsigned long long & {
+        auto number_unsign() const noexcept -> unsigned long long& {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
-                return *(unsigned long long *)mem_block;
+                return *(unsigned long long*)mem_block;
         }
 
-        auto number_floating() const noexcept -> double & {
+        auto number_floating() const noexcept -> double& {
                 if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
-                return *(double *)mem_block;
+                return *(double*)mem_block;
         }
 
-        auto boolean() const noexcept -> bool & {
+        auto boolean() const noexcept -> bool& {
                 if (Type != types::Boolean) {
                         tools::bad_getting_panic("boolean");
                 }
-                return *(bool *)mem_block;
+                return *(bool*)mem_block;
         }
 
-        auto string() const noexcept -> string_t & {
+        auto string() const noexcept -> string_t& {
                 if (Type != types::String) {
                         tools::bad_getting_panic("string");
                 }
-                return *(string_t *)mem_block;
+                return *(string_t*)mem_block;
         }
 
-        auto array() const noexcept -> array_t & {
+        auto array() const noexcept -> array_t& {
                 if (Type != types::Array) {
                         tools::bad_getting_panic("array");
                 }
-                return *(array_t *)mem_block;
+                return *(array_t*)mem_block;
         }
 
-        auto object() const noexcept -> object_t & {
+        auto object() const noexcept -> object_t& {
                 if (Type != types::Object) {
                         tools::bad_getting_panic("object");
                 }
-                return *(object_t *)mem_block;
+                return *(object_t*)mem_block;
         }
 
 
         // MARK: P1.5 容器功能函数
         // other operator overload
 public:
-        auto operator[](unsigned long idx) noexcept -> basic_json & {
+        auto operator[](unsigned long idx) noexcept -> basic_json& {
                 if (Type == types::Null) {
                         new (mem_block) array_t(idx + 1);
                         Type = types::Array;
@@ -1015,7 +1013,7 @@ public:
                 return (tools::mut_memcast<array_t>(mem_block))[idx];
         }
 
-        auto operator[](const string_t &key) noexcept -> basic_json & {
+        auto operator[](const string_t& key) noexcept -> basic_json& {
                 if (Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
@@ -1026,7 +1024,7 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        auto operator[](const char (&key)[]) noexcept -> basic_json & {
+        auto operator[](const char (&key)[]) noexcept -> basic_json& {
                 if (Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
@@ -1037,7 +1035,7 @@ public:
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json & {
+        auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
                 if (Type != types::Object) {
                         tools::bad_using_panic("operator+=(pair)", "object");
                 }
@@ -1053,7 +1051,7 @@ public:
                 tools::mut_memcast<array_t>(mem_block).push_back(std::move(other));
         }
 
-        bool operator==(const basic_json &other) const noexcept {
+        bool operator==(const basic_json& other) const noexcept {
                 if (this->Type != other.Type)
                         return false;
                 switch (Type) {
@@ -1081,9 +1079,9 @@ public:
         // MARK: P1.6 json的序列化
         // for dumping function ↓↓↓
 private:
-        static void string_decode_dump(const std::string &in_str, std::string &to_str) {
+        static void string_decode_dump(const std::string& in_str, std::string& to_str) {
                 to_str += '"';
-                for (const auto &ch : in_str) {
+                for (const auto& ch : in_str) {
                         if (ch >= 0 && ch < 32) {
                                 to_str += tools::escape_table[(unsigned)ch];
                                 continue;
@@ -1112,7 +1110,7 @@ private:
         // dumping
 private:
         // dump to string
-        void dump(std::string &str, int indent) const noexcept {
+        void dump(std::string& str, int indent) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1195,7 +1193,7 @@ private:
         }  // function `dump`
 
         // no pretty dumping (no indent and line break)
-        void fast_dump(std::string &str) const noexcept {
+        void fast_dump(std::string& str) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1765,7 +1763,7 @@ parse_string_to_number:
         // parsing API
 public:
         // parse json
-        static auto parse(const std::string &json_text) -> std::tuple<basic_json, err_string_t, size_t> {
+        static auto parse(const std::string& json_text) -> std::tuple<basic_json, err_string_t, size_t> {
                 size_t idx = 0;
                 // skip the space at the start
                 for (; idx < json_text.length(); ++idx) {
@@ -1822,7 +1820,7 @@ public:
                 *this = std::move(temp);
         }
 
-        auto operator=(std::ifstream file) noexcept -> basic_json & {
+        auto operator=(std::ifstream file) noexcept -> basic_json& {
                 auto [temp, err, idx] = parse(std::move(file));
                 if (!err.empty()) {
                         Type = types::Null;
@@ -1832,7 +1830,7 @@ public:
                 return *this;
         }
 
-        auto parse_from(const std::string &str) noexcept -> std::pair<err_string_t, size_t> {
+        auto parse_from(const std::string& str) noexcept -> std::pair<err_string_t, size_t> {
                 auto [temp, err, idx] = parse(str);
                 if (!err.empty()) {
                         return {std::move(err), idx};
@@ -1878,7 +1876,7 @@ using json_with_pool = basic_json<std_string_wrapping, std::vector, std_map_wrap
 
 
 // syntactic sugar
-inline auto operator""_json(const char *constr, size_t) -> json {
+inline auto operator""_json(const char* constr, size_t) -> json {
         auto [temp, err, _] = json::parse(constr);
         if (!err.empty()) {
                 return nullptr;
@@ -1890,7 +1888,7 @@ inline auto operator""_json(const char *constr, size_t) -> json {
 // 错误检查器, 通过给定错误点下标idx, 观察一定范围内的内容以方便查错, 与json无关
 // parsing json may failed, and it return a massage and index
 // this function can check the content near the failed index
-inline auto check_failed_part(const std::string &json_text_str, size_t idx, short view_offset = 20)
+inline auto check_failed_part(const std::string& json_text_str, size_t idx, short view_offset = 20)
         -> std::string {
         auto start_idx = idx >= (size_t)view_offset ? idx - view_offset : 0;
         auto end_idx = idx + view_offset < json_text_str.length() ? idx + view_offset : json_text_str.length() - 1;
@@ -1908,22 +1906,22 @@ public:
         using value_type = T;
 
         pool() = default;
-        pool(const pool &) noexcept = default;
+        pool(const pool&) noexcept = default;
 
         template <class U>
-        pool(const pool<U> &) noexcept {}
+        pool(const pool<U>&) noexcept {}
 
-        T *allocate(std::size_t n) { return static_cast<T *>(s_pool.allocate(n * sizeof(T))); }
+        T* allocate(std::size_t n) { return static_cast<T*>(s_pool.allocate(n * sizeof(T))); }
 
-        void deallocate(T *p, std::size_t n) noexcept { s_pool.deallocate(p, n * sizeof(T)); }
+        void deallocate(T* p, std::size_t n) noexcept { s_pool.deallocate(p, n * sizeof(T)); }
 
         template <class U>
-        bool operator==(const pool<U> &) const noexcept {
+        bool operator==(const pool<U>&) const noexcept {
                 return true;
         }
 
         template <class U>
-        bool operator!=(const pool<U> &) const noexcept {
+        bool operator!=(const pool<U>&) const noexcept {
                 return false;
         }
 };

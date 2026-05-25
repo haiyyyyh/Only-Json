@@ -1,3 +1,6 @@
+## `26.5.25`
+- 无更改,仅clang-format格式
+
 ## `26.5.23`
 - basic_json和一些内部API小改
 - 模板参数变动, basic_json允许自己提供string,array,object和allocator容器实现
@@ -7,7 +10,7 @@
 ## `26.5.20~22`
 - 修复了SAX解析引擎的一个bug, 还得到了大幅度性能提升
 - SAX空回调解析性能: 19MB*10 耗时 171.6~184.8ms
-- SAX提供了较少检查的可选项, 在保证json数据正确的情况下, 使用`parse_check_less()`可提升至 150.4~157.6ms
+- SAX提供了较少检查的可选项, 在保证json数据正确的情况下, 使用`parse_no_check()`可提升至 150.4~157.6ms
 - 使用DOM的only-json开发项目
 - 修复了一个崩溃bug
 - 项目结构小改

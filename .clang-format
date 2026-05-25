@@ -11,7 +11,7 @@ ContinuationIndentWidth: 8
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortBlocksOnASingleLine: Never
 SpaceAfterCStyleCast: false
-PointerAlignment: Right
+PointerAlignment: Left
 ReferenceAlignment: Pointer
 IndentGotoLabels: false
 MaxEmptyLinesToKeep: 3

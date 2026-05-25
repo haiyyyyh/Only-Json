@@ -1,3 +1,27 @@
+/****************************************************************************************
+                                                             _____________________
+  https://github.com/haiyyyyh                               |     by haiyyyyh     |
+     only-json::SAX parser                                  | version v0.4.0 DEV  |
+                                                            ``````````````````````
+                             _      _
+ //|||\\  //\\    \\  ||     \\    //                \\  //||\\   //|||\\  //\\    \\
+||    ||  || \\   ||  ||      \\  //                 ||  ||      ||    ||  || \\   ||
+||    ||  ||  \\  ||  ||       \\//   ::::::::  _    ||  \\||\\  ||    ||  ||  \\  ||
+||    ||  ||   \\ ||  ||        ||              \\   ||  _   ||  ||    ||  ||   \\ ||
+\\\||//   \\    \\//  \\\||//   ||               \\\//   \\||//  \\|||//   \\    \\//
+
+                                                                    ---- Bloated IS Sin
+     =================
+    [|      {↗}      |]
+    [|   Only-Json   |]
+    [| License : MIT |]
+    [|  © haiyyyyh   |]
+     ^^^^^^^^^^^^^^^^
+
+    Nothing, but only json
+
+*****************************************************************************************/
+
 #include <cmath>    // macro INFINITY
 #include <fstream>  // ifstring
 
@@ -13,13 +37,13 @@ constexpr long long LL_MAX = 0x7fffffffffffffffLL;
 constexpr unsigned long long ULL_MAX = 0xffffffffffffffffULL;
 
 template <typename T>
-auto mut_memcast(void *mem) -> T & {
-        return *reinterpret_cast<T *>(mem);
+auto mut_memcast(void* mem) -> T& {
+        return *reinterpret_cast<T*>(mem);
 }
 
 template <typename T>
-auto memcast(const void *mem) -> const T & {
-        return *reinterpret_cast<const T *>(mem);
+auto memcast(const void* mem) -> const T& {
+        return *reinterpret_cast<const T*>(mem);
 }
 
 // clang-format off
@@ -228,7 +252,7 @@ struct tuple<T1, T2, T3, T4, T5, T6> {
 
 
 template <typename any_handler>
-INLINE void u32ch_decode_push_to_handler(unsigned int ch, any_handler &handler) {
+INLINE void u32ch_decode_push_to_handler(unsigned int ch, any_handler& handler) {
         if (ch <= 0x7F) {
                 // 1字节：0xxxxxxx
                 handler.push_char((char)ch);
@@ -278,14 +302,14 @@ public:\
 }; */
 
 
-
+// MARK: Istream
 class Istream {
 private:
         std::string str;
         size_t size_cache;
-        char *iter;
-        char *start;
-        char *end;
+        char* iter;
+        char* start;
+        char* end;
 
 public:
         Istream() = delete;
@@ -295,9 +319,9 @@ public:
                   size_cache(str.length()),
                   iter(&str[0]),
                   start(&str[0]),
-                  end(&str[size_cache-1] + 1) {}
+                  end(&str[size_cache - 1] + 1) {}
 
-        Istream(std::ifstream &&file) {
+        Istream(std::ifstream&& file) {
                 file.seekg(0, std::ios::end);
                 size_t json_len = (size_t)file.tellg();
                 file.seekg(0, std::ios::beg);
@@ -309,11 +333,9 @@ public:
                 end = &str[size_cache - 1] + 1;
         }
 
-        Istream(Istream &&other) = default;
+        Istream(Istream&& other) = default;
 
-        HOT INLINE char peek() {
-                return *iter;
-        }
+        HOT INLINE char peek() { return *iter; }
 
         HOT INLINE void seek() {
                 likely_if(iter != end) { ++iter; }
@@ -333,59 +355,16 @@ public:
 };
 
 
-class Handler {
-        // std::string temp;
-public:
-        INLINE void start_str() {
-                // print("start str\n");
-        }
-        INLINE void end_str() {
-                // print("push str \033[31m{}\033[0m\nend str\n", temp);
-                // temp.clear();
-        }
-        INLINE void start_arr() {
-                // print("start arr\n");
-        }
-        INLINE void end_arr() {
-                // print("end arr\n");
-        }
-        INLINE void start_obj() {
-                // print("start obj\n");
-        }
-        INLINE void end_obj() {
-                // print("end obj\n");
-        }
-        INLINE void push_char(char) {
-                // temp+=ch;
-                // print("push \033[31m{}\033[0m\n", ch);
-        }
-        INLINE void push_number(Int64) {
-                // print("push \033[31m{}\033[0m\n", ll);
-        }
-        INLINE void push_number(Uint64) {
-                // print("push \033[31m{}\033[0m\n", ull);
-        }
-        INLINE void push_number(double) {
-                // print("push \033[31m{}\033[0m\n", d);
-        }
-        INLINE void push_bool(bool) {
-                // print("push \033[31m{}\033[0m\n", n);
-        }
-        INLINE void push_null() {
-                // print("push \033[31mnull64\033[0m\n");
-        }
-};
 
-
+// MARK: parser
 template <class IstreamT, class HandlerT>
-class parser {
-
+class Parser {
 public:
-        IstreamT &istream;
-        HandlerT &handler;
-        parser(IstreamT &ref_istream, HandlerT &ref_handler) : istream(ref_istream), handler(ref_handler) {}
+        IstreamT& istream;
+        HandlerT& handler;
+        Parser(IstreamT& ref_istream, HandlerT& ref_handler) : istream(ref_istream), handler(ref_handler) {}
 
-        parser(parser &&other) : istream(other.istream), handler(other.handler) {}
+        Parser(Parser&& other) : istream(other.istream), handler(other.handler) {}
 
         // clang-format off
 private:
@@ -837,7 +816,7 @@ _end_func:
 }
 
 // MARK: parse_check_less()
-void parse_check_less() {
+void parse_no_check() {
         // 所有标签, 均为'_'开头
         // all of the goto lable start with '_'
         eat_space();
@@ -950,22 +929,75 @@ _end_val:
         return;
 }
 
-// clang-format on
+        // clang-format on
 
 };  // class parser
 
 
-} // namespace hai
+}  // namespace hai
 
 
-using namespace hai;
 
-int main(){
-        Istream istream(std::ifstream("./test/big2.json"));
+class Handler {
+        // std::string temp;
+public:
+        INLINE void start_str() {
+                // print("start str\n");
+        }
+        INLINE void end_str() {
+                // print("push str \033[31m{}\033[0m\nend str\n", temp);
+                // temp.clear();
+        }
+        INLINE void start_arr() {
+                // print("start arr\n");
+        }
+        INLINE void end_arr() {
+                // print("end arr\n");
+        }
+        INLINE void start_obj() {
+                // print("start obj\n");
+        }
+        INLINE void end_obj() {
+                // print("end obj\n");
+        }
+        INLINE void push_char(char) {
+                // temp+=ch;
+                // print("push \033[31m{}\033[0m\n", ch);
+        }
+        INLINE void push_number(long long) {
+                // print("push \033[31m{}\033[0m\n", ll);
+        }
+        INLINE void push_number(unsigned long long) {
+                // print("push \033[31m{}\033[0m\n", ull);
+        }
+        INLINE void push_number(double) {
+                // print("push \033[31m{}\033[0m\n", d);
+        }
+        INLINE void push_bool(bool) {
+                // print("push \033[31m{}\033[0m\n", n);
+        }
+        INLINE void push_null() {
+                // print("push \033[31mnull64\033[0m\n");
+        }
+};
+
+
+
+// using namespace hai;
+
+int main() {
+        // Istream istream(std::ifstream("./test/big2.json"));
+        // Handler handle;
+        // Parser parser(istream, handle);
+        // for(int i=0; i<10; ++i) {
+        //         parser.parse_no_check();
+        //         parser.istream.reset();
+        // }
+        hai::Istream istream(std::ifstream("./test/big2.json"));
         Handler handle;
-        parser parser(istream, handle);
-        for(int i=0; i<10; ++i) {
-                parser.parse_check_less();
+        hai::Parser parser(istream, handle);
+        for (int i = 0; i < 10; ++i) {
+                parser.parse_no_check();
                 parser.istream.reset();
         }
 }
