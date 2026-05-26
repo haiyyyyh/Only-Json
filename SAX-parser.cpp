@@ -347,9 +347,9 @@ public:
                 return ret;
         }
 
-        INLINE size_t pos() { return iter - start; }
+        INLINE size_t pos() const { return iter - start; }
 
-        INLINE size_t length() { return size_cache; }
+        INLINE size_t length() const { return size_cache; }
 
         inline void reset() { iter = start; }
 };

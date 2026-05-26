@@ -47,14 +47,12 @@
 // MARK: Headers
 
 
-#include <charconv>  // to_chars
-#include <cmath>     // macro INFINITY
-#include <cstdio>    // fprintf for panic output
-#include <cstring>   // memcpy
-#include <fstream>   // ifstring
-#include <functional>
-#include <map>
-#include <memory>
+#include <charconv>         // to_chars
+#include <cmath>            // macro INFINITY
+#include <cstdio>           // fprintf for panic output
+#include <cstring>          // memcpy
+#include <fstream>          // ifstring
+#include <map>              // object_t
 #include <memory_resource>  // poll
 #include <string>           // string_t
 #include <vector>           // array_t
@@ -485,6 +483,15 @@ public:
 };
 
 
+// string, require one argument, the allocator
+template <typename Alloc>
+using std_string_wrapping = std::basic_string<char, std::char_traits<char>, Alloc>;
+
+// object, require three arguments: keytype, valuetype, allocater
+template <typename k, typename v, typename all>
+using std_map_wrapping = std::map<k, v, std::less<k>, all>;
+
+
 }  // namespace tools
 
 }  // namespace
@@ -853,6 +860,8 @@ public:
                 return nullptr;
         }
 
+        // not const
+
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
         operator T() noexcept {
@@ -896,6 +905,8 @@ public:
                 }
                 return tools::mut_memcast<object_t>(mem_block);
         }
+
+        // const
 
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
@@ -945,57 +956,110 @@ public:
         // MARK: P1.4 获取内部对象的函数
         // get
 public:
-        auto type() -> types { return Type; }
+        auto type() const noexcept -> types { return Type; }
 
-        auto number_integer() const noexcept -> long long& {
+        // not const
+
+        auto number_integer() noexcept -> long long& {
+                if (Type != types::Integer) {
+                        tools::bad_getting_panic("integer number");
+                }
+                return tools::mut_memcast<long long>(mem_block);
+        }
+
+        auto number_unsign() noexcept -> unsigned long long& {
+                if (Type != types::Integer) {
+                        tools::bad_getting_panic("unsigned number");
+                }
+                return tools::mut_memcast<unsigned long long>(mem_block);
+        }
+
+        auto number_floating() noexcept -> double& {
+                if (Type != types::Float) {
+                        tools::bad_getting_panic("floating-point number");
+                }
+                return tools::mut_memcast<double>(mem_block);
+        }
+
+        auto boolean() noexcept -> bool& {
+                if (Type != types::Boolean) {
+                        tools::bad_getting_panic("boolean");
+                }
+                return tools::mut_memcast<bool>(mem_block);
+        }
+
+        auto string() noexcept -> string_t& {
+                if (Type != types::String) {
+                        tools::bad_getting_panic("string");
+                }
+                return tools::mut_memcast<string_t>(mem_block);
+        }
+
+        auto array() noexcept -> array_t& {
+                if (Type != types::Array) {
+                        tools::bad_getting_panic("array");
+                }
+                return tools::mut_memcast<array_t>(mem_block);
+        }
+
+        auto object() noexcept -> object_t& {
+                if (Type != types::Object) {
+                        tools::bad_getting_panic("object");
+                }
+                return tools::mut_memcast<object_t>(mem_block);
+        }
+
+        // const
+
+        auto number_integer() const noexcept -> const long long& {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
                 // tools::memcast & memcast or use const_cast<> at here all cause errors
                 // so use C-style unsafe conversion
-                return *(long long*)mem_block;
+                return tools::memcast<long long>(mem_block);
         }
 
-        auto number_unsign() const noexcept -> unsigned long long& {
+        auto number_unsign() const noexcept -> const unsigned long long& {
                 if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
-                return *(unsigned long long*)mem_block;
+                return tools::memcast<unsigned long long>(mem_block);
         }
 
-        auto number_floating() const noexcept -> double& {
+        auto number_floating() const noexcept -> const double& {
                 if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
-                return *(double*)mem_block;
+                return tools::memcast<double>(mem_block);
         }
 
-        auto boolean() const noexcept -> bool& {
+        auto boolean() const noexcept -> const bool& {
                 if (Type != types::Boolean) {
                         tools::bad_getting_panic("boolean");
                 }
-                return *(bool*)mem_block;
+                return tools::memcast<bool>(mem_block);
         }
 
-        auto string() const noexcept -> string_t& {
+        auto string() const noexcept -> const string_t& {
                 if (Type != types::String) {
                         tools::bad_getting_panic("string");
                 }
-                return *(string_t*)mem_block;
+                return tools::memcast<string_t>(mem_block);
         }
 
-        auto array() const noexcept -> array_t& {
+        auto array() const noexcept -> const array_t& {
                 if (Type != types::Array) {
                         tools::bad_getting_panic("array");
                 }
-                return *(array_t*)mem_block;
+                return tools::memcast<array_t>(mem_block);
         }
 
-        auto object() const noexcept -> object_t& {
+        auto object() const noexcept -> const object_t& {
                 if (Type != types::Object) {
                         tools::bad_getting_panic("object");
                 }
-                return *(object_t*)mem_block;
+                return tools::memcast<object_t>(mem_block);
         }
 
 
@@ -1011,6 +1075,14 @@ public:
                 }
                 // undefined behavior (depend on the array implement)
                 return (tools::mut_memcast<array_t>(mem_block))[idx];
+        }
+
+        auto operator[](unsigned long idx) const noexcept -> const basic_json& {
+                if (Type != types::Array) {
+                        tools::bad_using_panic("operator[](size_t)", "array");
+                }
+                // undefined behavior (depend on the array implement)
+                return (tools::memcast<array_t>(mem_block))[idx];
         }
 
         auto operator[](const string_t& key) noexcept -> basic_json& {
@@ -1029,7 +1101,7 @@ public:
                         new (mem_block) object_t();
                         Type = types::Object;
                 } else if (Type != types::Object) {
-                        tools::bad_using_panic("operator[](string literal)", "object");
+                        tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
                 return (tools::mut_memcast<object_t>(mem_block))[key];
@@ -1093,7 +1165,7 @@ private:
                         case '\\':
                                 to_str += R"(\\)";
                                 break;
-                        //: this can be remove
+                        // this can be remove
                         // case '/':
                         //         to_str += R"(\/)";
                         //         break;
@@ -1861,18 +1933,10 @@ public:
 // for only-json basic_json template arguments contract
 // wrapped some STL container
 
-// string, require one argument, the allocator
-template <typename Alloc>
-using std_string_wrapping = std::basic_string<char, std::char_traits<char>, Alloc>;
-
-// object, require three arguments: keytype, valuetype, allocater
-template <typename k, typename v, typename all>
-using std_map_wrapping = std::map<k, v, std::less<k>, all>;
-
-using json = basic_json<std_string_wrapping, std::vector, std_map_wrapping, std::allocator>;
+using json = basic_json<tools::std_string_wrapping, std::vector, tools::std_map_wrapping, std::allocator>;
 
 template <template <typename> typename Alc>
-using json_with_pool = basic_json<std_string_wrapping, std::vector, std_map_wrapping, Alc>;
+using json_with_pool = basic_json<tools::std_string_wrapping, std::vector, tools::std_map_wrapping, Alc>;
 
 
 // syntactic sugar

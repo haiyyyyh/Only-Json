@@ -1,3 +1,6 @@
+## `26.5.26`
+- 更改basic_json在const下的API, 新增了一些函数的const重载
+
 ## `26.5.25`
 - 无更改,仅clang-format格式
 
