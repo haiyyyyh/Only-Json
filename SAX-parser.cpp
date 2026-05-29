@@ -23,7 +23,7 @@
 *****************************************************************************************/
 
 #include <cmath>    // macro INFINITY
-#include <fstream>  // ifstring
+#include <fstream>  // ifstream
 
 
 namespace hai {
@@ -342,8 +342,7 @@ public:
         }
 
         HOT INLINE char get() {
-                char ret = *iter;
-                this->seek();
+                char ret = *(iter++);
                 return ret;
         }
 
@@ -355,9 +354,14 @@ public:
 };
 
 
+constexpr unsigned int flag_parse_number_as_str = 0b0001;
+constexpr unsigned int flag_enable_following_comma = 0b0010;
+constexpr unsigned int flag_enable_escape_line_break = 0b0100;
+constexpr unsigned int flag_no_parse_escape_sequence = 0b1000;
+
 
 // MARK: parser
-template <class IstreamT, class HandlerT>
+template <class IstreamT, class HandlerT, unsigned int flag=0b0000>
 class Parser {
 public:
         IstreamT& istream;
@@ -369,7 +373,7 @@ public:
         // clang-format off
 private:
 
-// if at the end, return `true`
+// skip space, if at the end return `true`
 INLINE bool eat_space() {
         char ch;
         while(true) {
@@ -438,14 +442,22 @@ _eat_ascii:
                 case '\n':
                         return "未闭合的'\"', 发现换行符";
                 case '\\':
-                        goto _had_escape;
-                default:
-                        handler.push_char(ch);
+                        if constexpr (flag & flag_no_parse_escape_sequence) {
+                                // escaped '"' only
+                                if (istream.peek()=='"') {
+                                        handler.push_char('"');
+                                        istream.seek();
+                                        continue;
+                                }
+                        } else {
+                                goto _had_escape;
+                        }
                 }
         }
 _had_escape:
         // now we meet a '\' character, read ptr at the char after '\'
-        switch (istream.get()) {
+        ch = istream.get();
+        switch (ch) {
         case '\0':
                 return "'\\'后的EOF, 非法转义";
         case '"':  handler.push_char('"');  break;
@@ -486,52 +498,22 @@ _had_escape:
                 break;
         }
         default:
-               return "非法转义";
+                if constexpr (flag & flag_enable_escape_line_break) {
+                        // check \r\n
+                        if (ch=='\r') {
+                                if (istream.peek()=='\n') {
+                                        istream.seek();
+                                }
+                        } else unlikely_if (ch!='\n') {
+                                return "非法转义";
+                        }
+                } else {
+                        return "非法转义";
+                }
         }
         goto _eat_ascii;
 }
 
-// MARK: parse_string_check_less()
-INLINE void parse_string_check_less() {
-        istream.seek(); // skip '"'
-        char ch;
-        // most of the string doesn't have escape sequence
-        while(true) {
-_eat_ascii:
-                ch = istream.get();
-                unlikely_if (ch=='"') return;
-                unlikely_if (ch=='\\') goto _had_escape;
-                handler.push_char(ch);
-        }
-_had_escape:
-        // now we meet a '\' character, read ptr at the char after '\'
-        switch (istream.get()) {
-        case '"':  handler.push_char('"');  break;
-        case '\\': handler.push_char('\\'); break;
-        case 'b':  handler.push_char('\b'); break;
-        case 'f':  handler.push_char('\f'); break;
-        case 'n':  handler.push_char('\n'); break;
-        case 'r':  handler.push_char('\r'); break;
-        case 't':  handler.push_char('\t'); break;
-        case '/':  handler.push_char('/');  break;
-        case 'u': {
-                auto point = read_4bit_of_unicode();
-                --point;
-                if (point >= 0xD800 && point <= 0xDBFF) { // high-half zone
-                        auto low_point = read_4bit_of_unicode();
-                        --low_point;
-                        point = ((point-0xD800)<<10 | (low_point-0xDC00)) + 0x10000;
-                        tools::u32ch_decode_push_to_handler(point, handler);
-                } else {
-                        tools::u32ch_decode_push_to_handler(point, handler);
-                }
-                break;
-        }
-        default:
-               return;
-        }
-        goto _eat_ascii;
-}
 
 // MARK: parse_number()
 INLINE auto parse_number(bool check_first_ch) -> const char* {
@@ -654,14 +636,105 @@ _end_by_float:
 }  // end function `parse_number`
 
 
+// MARK: parse_number_to_str()
+INLINE auto parse_number_to_str(bool check_first_ch) -> const char* {
+        char ch = istream.peek();
+        unlikely_if(check_first_ch) switch (ch) {
+        case '0':
+                handler.push_num_ch('0');
+                istream.seek(); // skip this '0'
+                switch (istream.peek()) {
+                case '.':
+                        handler.push_num_ch('.');
+                        istream.seek(); // skip '.'
+                        goto _dec_part;
+                case 'E':
+                case 'e':
+                        handler.push_num_ch('e');
+                        istream.seek(); // skip 'E' or 'e'
+                        goto _exp_part;
+                default:
+                        return "";
+                }
+        case '+':
+        case '-':
+                handler.push_num_ch(ch);
+                istream.seek(); // skip sig
+                char next_ch = istream.peek();
+                unlikely_if (next_ch<'0' || next_ch>'9') return "+/-后的未预期字符";
+                goto _int_part;
+        }
+_int_part:
+        while (true) {
+                ch = istream.peek();
+                likely_if (ch>='0' && ch<='9') {
+                        handler.push_num_ch(ch);
+                        istream.seek();
+                        continue;
+                }
+                switch (ch) {
+                case '.':
+                        handler.push_num_ch('.');
+                        istream.seek(); // skip this '.'
+                        goto _dec_part;
+                case 'E':
+                case 'e':
+                        handler.push_num_ch('e');
+                        istream.seek(); // skip this 'e'/'E'
+                        goto _exp_part;
+                default:
+                        return "";
+                }
+        }
+_dec_part: {
+        ch = istream.get();
+        likely_if (ch>='0' && ch<='9') {
+                handler.push_num_ch(ch);
+        } else {
+                return "'.'后的未预期字符";
+        }
+        while (true) {
+                ch = istream.peek();
+                likely_if (ch>='0' && ch<='9') {
+                        handler.push_num_ch(ch);
+                        istream.seek();
+                        continue;
+                }
+                if (ch=='e' || ch=='E') {
+                        handler.push_num_ch('e');
+                        istream.seek();
+                        goto _exp_part;
+                }
+                return "";
+        }
+}
+_exp_part: {
+        char ch = istream.get();
+        likely_if ((ch>='0' && ch<='9') || ch=='-' || ch=='+') {
+                handler.push_num_ch(ch);
+        } else{
+                return "'e'或'E'后未预期的字符";
+        }
+        while (true) {
+                ch = istream.peek();
+                likely_if (ch>='0' && ch<='9') {
+                        handler.push_num_ch(ch);
+                        istream.seek();
+                        continue;
+                }
+                return "";
+        }
+}
+}  // end function `parse_number`
+
+
 public:
 
 // MARK: parse()
 auto parse() -> const char* {
         // 所有标签, 均为'_'开头
         // all of the goto lable start with '_'
-        eat_space();
-        unlikely_if (istream.pos() == istream.length()) {
+        unlikely_if (eat_space()) {
                 return "empty json";
         }
         enum class states {
@@ -674,7 +747,8 @@ auto parse() -> const char* {
         states stack[39]; states* top = stack;
         bool check_number_first_char = false;
 _start_val:
-        switch (istream.peek()) {
+        char temp_ch = istream.peek();
+        switch (temp_ch) {
         case '+': case '-': case '0':
                 check_number_first_char = true;
         case '1': case '2': case '3':
@@ -705,9 +779,17 @@ _parse_str: {
         goto _end_val;
 }
 _parse_num: {
-        auto err = parse_number(check_number_first_char);
-        unlikely_if (err[0]!='\0')
-                return err;
+        if constexpr (flag & flag_parse_number_as_str) {
+                handler.start_num();
+                auto err = parse_number_to_str(check_number_first_char);
+                unlikely_if (err[0]!='\0')
+                        return err;
+                handler.end_num();
+        } else {
+                auto err = parse_number(check_number_first_char);
+                unlikely_if (err[0]!='\0')
+                        return err;
+        }
         goto _end_val;
 }
 _arr_start:
@@ -715,9 +797,20 @@ _arr_start:
         *top = states::in_arr;
         handler.start_arr();
         istream.seek(); // skip '['
+        unlikely_if (istream.peek()==']') {
+                istream.seek();
+                goto _arr_end;
+        }
 _arr_val:
         unlikely_if (eat_space())
                 return "遇到EOF, 缺值或'}'";
+        // check if allow following comma
+        if constexpr (flag & flag_enable_following_comma) {
+                if (istream.peek()==']') {
+                        istream.seek(); // skip ']'
+                        goto _arr_end;
+                }
+        }
         goto _start_val;
 _arr_end:
         --top;
@@ -727,12 +820,35 @@ _obj_start:
         handler.start_obj();
         istream.seek(); // skip '{'
         ++top; // part of object, at key
+        // here is also object key, but object can be empty "{}", special judge
+        *top = states::obj_k;
+        unlikely_if (eat_space())
+                return "遇到EOF, 缺完整键值对或'}'";
+        temp_ch = istream.peek();
+        unlikely_if (temp_ch!='"') {
+                likely_if (temp_ch=='}') {
+                        istream.seek(); // skip '}'
+                        goto _obj_end;
+                }
+                return "未预期的字符, 应为键";
+        }
+        goto _parse_str;
+// other key string (not the first one)
 _obj_key:
         *top = states::obj_k;
         unlikely_if (eat_space())
                 return "遇到EOF, 缺完整键值对或'}'";
-        unlikely_if (istream.peek()!='"')
+        temp_ch = istream.peek();
+        unlikely_if (temp_ch!='"') {
+                // check if allow following comma
+                if constexpr (flag & flag_enable_following_comma) {
+                        if (temp_ch=='}') {
+                                istream.seek(); // skip '}'
+                                goto _obj_end;
+                        }
+                }
                 return "未预期的字符, 应为键";
+        }
         goto _parse_str;
 _obj_val:
         *top = states::obj_v; // also part of object, at value
@@ -785,17 +901,17 @@ _end_val:
                 // path: _arr_val -> _start_val -> _end_val(here)
                 unlikely_if (at_end)
                         return "遇到EOF, 未闭合'[]'";
-                char ch = istream.get();
-                if(ch==',') goto _arr_val;
-                if(ch==']') goto _arr_end;
+                temp_ch = istream.get();
+                if(temp_ch==',') goto _arr_val;
+                if(temp_ch==']') goto _arr_end;
                 return "未预期字符, 应为']'";
         }
         if (*top==states::obj_k) {
                 // path: _obj_key -> _parse_str -> _end_val(here)
                 unlikely_if (at_end)
                         return "键后的EOF, 缺少值和'}'";
-                char ch = istream.get();
-                unlikely_if (ch!=':')
+                temp_ch = istream.get();
+                unlikely_if (temp_ch!=':')
                         return "键后未预期的字符, 应为':'";
                 goto _obj_val;
         }
@@ -803,130 +919,15 @@ _end_val:
                 // path: _obj_val -> _start_val -> _end_val(here)
                 unlikely_if (at_end)
                         return "值后的EOF, 缺少'}'";
-                char ch = istream.get();
-                if(ch==',') goto _obj_key;
-                if(ch=='}') goto _obj_end;
+                temp_ch = istream.get();
+                if(temp_ch==',') goto _obj_key;
+                if(temp_ch=='}') goto _obj_end;
                 return "未预期的字符, 应为'}'";
         }
 _end_func:
-        at_end = eat_space();
-        unlikely_if (!at_end)
+        unlikely_if (!eat_space())
                 return "完整json结构后多余的字符";
-        return "other error";
-}
-
-// MARK: parse_check_less()
-void parse_no_check() {
-        // 所有标签, 均为'_'开头
-        // all of the goto lable start with '_'
-        eat_space();
-        unlikely_if (istream.pos() == istream.length()) {
-                return;
-        }
-        enum class states {
-                none,
-                in_arr,
-                obj_k,
-                obj_v
-        };
-        // std::stack<states, std::vector<states>> stack; // 可能的后期性能瓶颈
-        states stack[39]; states* top = stack;
-        bool check_number_first_char = false;
-_start_val:
-        switch (istream.peek()) {
-        case '+': case '-': case '0':
-                check_number_first_char = true;
-        case '1': case '2': case '3':
-        case '4': case '5': case '6':
-        case '7': case '8': case '9':
-                goto _parse_num;
-        case '"':
-                goto _parse_str;
-        case '[':
-                goto _arr_start;
-        case '{':
-                goto _obj_start;
-        case 't':
-                goto _parse_true;
-        case 'f':
-                goto _parse_false;
-        case 'n':
-                goto _parse_null;
-        default:
-                return;
-        }
-_parse_str: {
-        handler.start_str();
-        parse_string_check_less();
-        handler.end_str();
-        goto _end_val;
-}
-_parse_num: {
-        parse_number(check_number_first_char);
-        goto _end_val;
-}
-_arr_start:
-        ++top;
-        *top = states::in_arr;
-        handler.start_arr();
-        istream.seek(); // skip '['
-_arr_val:
-        eat_space();
-        goto _start_val;
-_arr_end:
-        --top;
-        handler.end_arr();
-        goto _end_val;
-_obj_start:
-        handler.start_obj();
-        istream.seek(); // skip '{'
-        ++top; // part of object, at key
-_obj_key:
-        *top = states::obj_k;
-        eat_space();
-        goto _parse_str;
-_obj_val:
-        *top = states::obj_v; // also part of object, at value
-        eat_space();
-        goto _start_val;
-_obj_end:
-        --top; // pop the object stack, it's obj_v
-        handler.end_obj();
-        goto _end_val;
-_parse_true:
-        istream.seek(); istream.seek(); istream.seek(); istream.seek();
-        handler.push_bool(true);
-        goto _end_val;
-_parse_false:
-        istream.seek(); istream.seek(); istream.seek(); istream.seek(); istream.seek();
-        handler.push_bool(false);
-        goto _end_val;
-_parse_null:
-        istream.seek(); istream.seek(); istream.seek(); istream.seek();
-        handler.push_null();
-        goto _end_val;
-_end_val:
-        eat_space();
-        if (*top==states::in_arr) {
-                // path: _arr_val -> _start_val -> _end_val(here)
-                char ch = istream.get();
-                if(ch==',') goto _arr_val;
-                if(ch==']') goto _arr_end;
-                return;
-        }
-        if (*top==states::obj_k) {
-                // path: _obj_key -> _parse_str -> _end_val(here)
-                istream.seek(); // skip ':'
-                goto _obj_val;
-        }
-        if (*top==states::obj_v) {
-                // path: _obj_val -> _start_val -> _end_val(here)
-                char ch = istream.get();
-                if(ch==',') goto _obj_key;
-                if(ch=='}') goto _obj_end;
-                return;
-        }
-        return;
+        return "";
 }
 
         // clang-format on
@@ -936,16 +937,18 @@ _end_val:
 
 }  // namespace hai
 
-
+#include <print>
+using std::print;
 
 class Handler {
-        // std::string temp;
+        std::string temp;
+        std::string temp_num;
 public:
         INLINE void start_str() {
                 // print("start str\n");
         }
         INLINE void end_str() {
-                // print("push str \033[31m{}\033[0m\nend str\n", temp);
+                // print("push str '{}'\nend str\n", temp);
                 // temp.clear();
         }
         INLINE void start_arr() {
@@ -960,44 +963,55 @@ public:
         INLINE void end_obj() {
                 // print("end obj\n");
         }
-        INLINE void push_char(char) {
-                // temp+=ch;
-                // print("push \033[31m{}\033[0m\n", ch);
+        INLINE void push_char(char n) {
+                // temp+=n;
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_number(long long) {
-                // print("push \033[31m{}\033[0m\n", ll);
+        INLINE void push_number(long long n) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_number(unsigned long long) {
-                // print("push \033[31m{}\033[0m\n", ull);
+        INLINE void push_number(unsigned long long n) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_number(double) {
-                // print("push \033[31m{}\033[0m\n", d);
+        INLINE void push_number(double n) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_bool(bool) {
+        INLINE void push_bool(bool n) {
                 // print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_null() {
                 // print("push \033[31mnull64\033[0m\n");
         }
+        INLINE void start_num() {
+                // print("start num\n");
+        }
+        INLINE void end_num() {
+                // print("push num '{}'\nend num\n", temp_num);
+                // temp_num.clear();
+        }
+        INLINE void push_num_ch(char ch) {
+                // temp_num+=ch;
+        }
 };
 
 
 
-// using namespace hai;
+using namespace hai;
 
 int main() {
-        // Istream istream(std::ifstream("./test/big2.json"));
-        // Handler handle;
-        // Parser parser(istream, handle);
-        // for(int i=0; i<10; ++i) {
-        //         parser.parse_no_check();
-        //         parser.istream.reset();
-        // }
-        hai::Istream istream(std::ifstream("./test/big2.json"));
+        Istream istream(std::ifstream("./test/big2.json"));
         Handler handle;
-        hai::Parser parser(istream, handle);
+        Parser<
+                Istream,
+                Handler
+        > parser (istream, handle);
+        // std::string err = parser.parse();
+        // if (!err.empty()) {
+        //         std::print("{} at {}", err, istream.pos());
+        //         return 1;
+        // }
         for (int i = 0; i < 10; ++i) {
-                parser.parse_no_check();
+                parser.parse();
                 parser.istream.reset();
         }
 }

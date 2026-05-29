@@ -1536,5 +1536,6 @@
     }
   },
   "title": ".clang-format config",
-  "type": "object"
+  "type": "object",
+  "test":[-2345.23e-12]
 }
