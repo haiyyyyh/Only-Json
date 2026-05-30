@@ -355,6 +355,22 @@ const char* escape_table[32] {
 
 // clang-format on
 
+// #ifndef likely
+// #define likely(x) __builtin_expect((x), 1)
+// #endif
+// #ifndef unlikely
+// #define unlikely(x) __builtin_expect((x), 0)
+// #endif
+
+#define likely_if(x) if (__builtin_expect((x), 1))
+#define unlikely_if(x) if (__builtin_expect((x), 0))
+// #define likely_if(x) if(x)
+// #define unlikely_if(x) if(x)
+
+#define INLINE __attribute__((always_inline)) inline
+#define HOT __attribute__((hot))
+// #define HOT
+
 template <typename... Args>
 class tuple;
 
@@ -588,7 +604,7 @@ public:
         template <typename T>
                 requires(tools::IntegerOnly<T>)
         basic_json(T i_v) noexcept {
-                if (i_v > tools::LL_MAX) {
+                unlikely_if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = types::Unsign;
                 } else {
@@ -715,7 +731,7 @@ public:
                 requires(tools::IntegerOnly<T>)
         auto operator=(T i_v) noexcept -> basic_json& {
                 free();
-                if (i_v > tools::LL_MAX) {
+                unlikely_if (i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = types::Unsign;
                 } else {
@@ -867,7 +883,7 @@ public:
 public:
         template <typename T>
         operator T*() const noexcept {
-                if (Type != types::Null) {
+                unlikely_if (Type != types::Null) {
                         tools::bad_conversion_panic("null type");
                 }
                 return nullptr;
@@ -878,7 +894,7 @@ public:
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
         operator T() noexcept {
-                if (Type > types::Float) {
+                unlikely_if (Type > types::Float) {
                         tools::bad_conversion_panic("number");
                 }
                 switch (Type) {
@@ -892,28 +908,28 @@ public:
         }
 
         operator bool() noexcept {
-                if (Type != types::Boolean) {
+                unlikely_if (Type != types::Boolean) {
                         tools::bad_conversion_panic("boolean");
                 }
                 return tools::mut_memcast<bool>(mem_block);
         }
 
         operator string_t() noexcept {
-                if (Type != types::String) {
+                unlikely_if (Type != types::String) {
                         tools::bad_conversion_panic("string");
                 }
                 return tools::mut_memcast<string_t>(mem_block);
         }
 
         operator array_t() noexcept {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_conversion_panic("array");
                 }
                 return tools::mut_memcast<array_t>(mem_block);
         }
 
         operator object_t() noexcept {
-                if (Type != types::Object) {
+                unlikely_if (Type != types::Object) {
                         tools::bad_conversion_panic("object");
                 }
                 return tools::mut_memcast<object_t>(mem_block);
@@ -924,7 +940,7 @@ public:
         template <typename T>
                 requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
         operator const T() const noexcept {
-                if (Type > types::Float) {
+                unlikely_if (Type > types::Float) {
                         tools::bad_conversion_panic("number");
                 }
                 switch (Type) {
@@ -938,28 +954,28 @@ public:
         }
 
         operator const bool() const noexcept {
-                if (Type != types::Boolean) {
+                unlikely_if (Type != types::Boolean) {
                         tools::bad_conversion_panic("boolean");
                 }
                 return tools::memcast<bool>(mem_block);
         }
 
         operator const string_t() const noexcept {
-                if (Type != types::String) {
+                unlikely_if (Type != types::String) {
                         tools::bad_conversion_panic("string");
                 }
                 return tools::memcast<string_t>(mem_block);
         }
 
         operator const array_t() const noexcept {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_conversion_panic("array");
                 }
                 return tools::memcast<array_t>(mem_block);
         }
 
         operator const object_t() const noexcept {
-                if (Type != types::Object) {
+                unlikely_if (Type != types::Object) {
                         tools::bad_conversion_panic("object");
                 }
                 return tools::memcast<object_t>(mem_block);
@@ -974,49 +990,49 @@ public:
         // not const
 
         auto number_integer() noexcept -> long long& {
-                if (Type != types::Integer) {
+                unlikely_if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
                 return tools::mut_memcast<long long>(mem_block);
         }
 
         auto number_unsign() noexcept -> unsigned long long& {
-                if (Type != types::Integer) {
+                unlikely_if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
                 return tools::mut_memcast<unsigned long long>(mem_block);
         }
 
         auto number_floating() noexcept -> double& {
-                if (Type != types::Float) {
+                unlikely_if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
                 return tools::mut_memcast<double>(mem_block);
         }
 
         auto boolean() noexcept -> bool& {
-                if (Type != types::Boolean) {
+                unlikely_if (Type != types::Boolean) {
                         tools::bad_getting_panic("boolean");
                 }
                 return tools::mut_memcast<bool>(mem_block);
         }
 
         auto string() noexcept -> string_t& {
-                if (Type != types::String) {
+                unlikely_if (Type != types::String) {
                         tools::bad_getting_panic("string");
                 }
                 return tools::mut_memcast<string_t>(mem_block);
         }
 
         auto array() noexcept -> array_t& {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_getting_panic("array");
                 }
                 return tools::mut_memcast<array_t>(mem_block);
         }
 
         auto object() noexcept -> object_t& {
-                if (Type != types::Object) {
+                unlikely_if (Type != types::Object) {
                         tools::bad_getting_panic("object");
                 }
                 return tools::mut_memcast<object_t>(mem_block);
@@ -1025,7 +1041,7 @@ public:
         // const
 
         auto number_integer() const noexcept -> const long long& {
-                if (Type != types::Integer) {
+                unlikely_if (Type != types::Integer) {
                         tools::bad_getting_panic("integer number");
                 }
                 // tools::memcast & memcast or use const_cast<> at here all cause errors
@@ -1034,42 +1050,42 @@ public:
         }
 
         auto number_unsign() const noexcept -> const unsigned long long& {
-                if (Type != types::Integer) {
+                unlikely_if (Type != types::Integer) {
                         tools::bad_getting_panic("unsigned number");
                 }
                 return tools::memcast<unsigned long long>(mem_block);
         }
 
         auto number_floating() const noexcept -> const double& {
-                if (Type != types::Float) {
+                unlikely_if (Type != types::Float) {
                         tools::bad_getting_panic("floating-point number");
                 }
                 return tools::memcast<double>(mem_block);
         }
 
         auto boolean() const noexcept -> const bool& {
-                if (Type != types::Boolean) {
+                unlikely_if (Type != types::Boolean) {
                         tools::bad_getting_panic("boolean");
                 }
                 return tools::memcast<bool>(mem_block);
         }
 
         auto string() const noexcept -> const string_t& {
-                if (Type != types::String) {
+                unlikely_if (Type != types::String) {
                         tools::bad_getting_panic("string");
                 }
                 return tools::memcast<string_t>(mem_block);
         }
 
         auto array() const noexcept -> const array_t& {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_getting_panic("array");
                 }
                 return tools::memcast<array_t>(mem_block);
         }
 
         auto object() const noexcept -> const object_t& {
-                if (Type != types::Object) {
+                unlikely_if (Type != types::Object) {
                         tools::bad_getting_panic("object");
                 }
                 return tools::memcast<object_t>(mem_block);
@@ -1080,10 +1096,10 @@ public:
         // other operator overload
 public:
         auto operator[](unsigned long idx) noexcept -> basic_json& {
-                if (Type == types::Null) {
+                unlikely_if (Type == types::Null) {
                         new (mem_block) array_t(idx + 1);
                         Type = types::Array;
-                } else if (Type != types::Array) {
+                } else unlikely_if (Type != types::Array) {
                         tools::bad_using_panic("operator[](size_t)", "array");
                 }
                 // undefined behavior (depend on the array implement)
@@ -1091,7 +1107,7 @@ public:
         }
 
         auto operator[](unsigned long idx) const noexcept -> const basic_json& {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_using_panic("operator[](size_t)", "array");
                 }
                 // undefined behavior (depend on the array implement)
@@ -1099,10 +1115,10 @@ public:
         }
 
         auto operator[](const string_t& key) noexcept -> basic_json& {
-                if (Type == types::Null) {
+                unlikely_if (Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
-                } else if (Type != types::Object) {
+                } else unlikely_if (Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
@@ -1110,10 +1126,10 @@ public:
         }
 
         auto operator[](const char (&key)[]) noexcept -> basic_json& {
-                if (Type == types::Null) {
+                unlikely_if (Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
-                } else if (Type != types::Object) {
+                } else unlikely_if (Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
@@ -1121,7 +1137,7 @@ public:
         }
 
         auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
-                if (Type != types::Object) {
+                unlikely_if (Type != types::Object) {
                         tools::bad_using_panic("operator+=(pair)", "object");
                 }
                 tools::mut_memcast<object_t>(mem_block).insert(std::move(insert_pair));
@@ -1130,7 +1146,7 @@ public:
 
         template <typename = std::enable_if<true>>
         auto operator+=(basic_json other) noexcept {
-                if (Type != types::Array) {
+                unlikely_if (Type != types::Array) {
                         tools::bad_using_panic("operator+=(json item)", "array");
                 }
                 tools::mut_memcast<array_t>(mem_block).push_back(std::move(other));
@@ -1164,7 +1180,7 @@ public:
         // MARK: P1.6 json的序列化
         // for dumping function ↓↓↓
 private:
-        static void string_decode_dump(const std::string& in_str, std::string& to_str) {
+         static void string_decode_dump(const std::string& in_str, std::string& to_str) {
                 to_str += '"';
                 for (const auto& ch : in_str) {
                         if (ch >= 0 && ch < 32) {
@@ -1195,7 +1211,7 @@ private:
         // dumping
 private:
         // dump to string
-        void dump(std::string& str, int indent) const noexcept {
+         void dump(std::string& str, int indent) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1219,7 +1235,7 @@ private:
                 case types::Array: {
                         bool line_break = false;
                         auto &this_array = tools::memcast<array_t>(mem_block);
-                        if(this_array.empty()){
+                        if (this_array.empty()){
                                 str+="[]";
                                 return;
                         }
@@ -1253,7 +1269,7 @@ private:
                 }
                 case types::Object: {
                         const object_t &obj = tools::memcast<object_t>(mem_block);
-                        if(obj.empty()) {
+                        if (obj.empty()) {
                                 str += "{}";
                                 return;
                         }
@@ -1278,7 +1294,7 @@ private:
         }  // function `dump`
 
         // no pretty dumping (no indent and line break)
-        void fast_dump(std::string& str) const noexcept {
+         void fast_dump(std::string& str) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1306,7 +1322,7 @@ private:
                                 item.fast_dump(str);
                                 str += ", ";
                         }
-                        if(!this_array.empty())
+                        if (!this_array.empty())
                                 str.resize(str.length() - 2);
                         str += ']';
                         break;
@@ -1320,7 +1336,7 @@ private:
                                 val.fast_dump(str);
                                 str += ", ";
                         }
-                        if(!obj.empty())
+                        if (!obj.empty())
                                 str.resize(str.length() - 2);
                         str += '}';
                 }
@@ -1357,7 +1373,7 @@ private:
         // MARK: P2.0 调度函数
         // private parsing function, switch and call some parse_xxx function, be call by public parse
         // and parse_xxx return <json object : error massage>
-        static auto parsing_func(const std::string &str, size_t &idx) -> std::pair<basic_json, err_string_t> {
+        HOT static auto parsing_func(const std::string &str, size_t &idx) -> std::pair<basic_json, err_string_t> {
                 basic_json result;
                 char ch = str[idx];
                 switch (ch) {
@@ -1385,28 +1401,28 @@ private:
                 }
                 case '"': {
                         auto [string, err] = parse_string(str, idx);
-                        if (!err.empty()) {
+                        unlikely_if (!err.empty()) {
                                 return {nullptr, std::move(err)};
                         }
                         return {std::move(string), ""};
                 }
                 case '[': {
                         auto [array, err] = parse_array(str, idx);
-                        if (!err.empty()) {
+                        unlikely_if (!err.empty()) {
                                 return {nullptr, std::move(err)};
                         }
                         return {std::move(array), ""};
                 }
                 case '{': {
                         auto [object, err] = parse_object(str, idx);
-                        if(!err.empty()) {
+                        unlikely_if (!err.empty()) {
                                 return {nullptr, std::move(err)};
                         }
                         return {std::move(object), ""};
                 }
                 case 'n': {
                         // is it 'null' ?
-                        if(idx+3>=str.length() || str[idx+1]!='u' || str[idx+2]!='l' || str[idx+3]!='l'){
+                        unlikely_if (idx+3>=str.length() || str[idx+1]!='u' || str[idx+2]!='l' || str[idx+3]!='l'){
                                 return {nullptr, "未预期的字符'n', 未能匹配到关键字'null', 错误"};
                         }
                         idx+=3;
@@ -1414,7 +1430,7 @@ private:
                 }
                 case 't': {
                         // is it 'true' ?
-                        if(idx+3>=str.length() || str[idx+1]!='r' || str[idx+2]!='u' || str[idx+3]!='e'){
+                        unlikely_if (idx+3>=str.length() || str[idx+1]!='r' || str[idx+2]!='u' || str[idx+3]!='e'){
                                 return {nullptr, "未预期的字符't', 未能匹配到关键字'true', 错误"};
                         }
                         idx+=3;
@@ -1422,7 +1438,7 @@ private:
                 }
                 case 'f': {
                         // is it 'false' ?
-                        if(idx+4>=str.length() || str[idx+1]!='a' || str[idx+2]!='l' || str[idx+3]!='s' || str[idx+4]!='e'){
+                        unlikely_if (idx+4>=str.length() || str[idx+1]!='a' || str[idx+2]!='l' || str[idx+3]!='s' || str[idx+4]!='e'){
                                 return {nullptr, "未预期的字符'f', 未能匹配到关键字'false', 错误"};
                         }
                         idx+=4;
@@ -1434,7 +1450,7 @@ private:
         } // end function `parsing_func`
 
         // MARK: P2.1 字符串解析
-        static auto parse_string(const std::string &str, size_t &idx) -> std::pair<string_t, err_string_t> {
+        HOT INLINE static auto parse_string(const std::string &str, size_t &idx) -> std::pair<string_t, err_string_t> {
                 static const auto get_16base_ch_num = [](char ch) -> int8_t {
                         switch (ch) {
                         case '0': case '1': case '2':
@@ -1457,24 +1473,24 @@ private:
                 string_t ret;
                 ++idx;  // we make sure that the first character is '"'
                 size_t start = idx;
-                bool is_view = false;
+                bool is_view = true;
                 for (; idx<str.length(); ++idx) {
                         char ch=str[idx];
                         switch (ch) {
                         case '"':
-                                if(is_view) {
+                                if (is_view) {
                                         ret = str.substr(start, idx-start);
                                 }
                                 return {std::move(ret), ""};
                         case '\n':
                                 return {"", "'\"'未闭合, 找到行尾'\n', 非法的`string`"};
                         case '\\': {
-                                if(!is_view) {
+                                if (is_view) {
                                         ret = str.substr(start, idx-start);
-                                        is_view = true;
+                                        is_view = false;
                                 }
                                 auto i = idx+1; // declear a temp index variable, if failed, idx doesn't change, success, then idx = temp_idx
-                                if(i>=str.length()){
+                                unlikely_if (i>=str.length()){
                                         return {"", "'\\'后的EOF, 非法转义"};
                                 }
                                 switch(str[i]){
@@ -1504,7 +1520,7 @@ private:
                                         break;
                                 case 'u': {
                                         ++i; // move to first bit (0~9 A~F a~f)
-                                        if(i+3>=str.length()) {
+                                        unlikely_if (i+3>=str.length()) {
                                                 return {"", "非法的UTF-16转义, 遇到EOF"};
                                         }
                                         int8_t bit1=get_16base_ch_num(str[i]),
@@ -1512,18 +1528,18 @@ private:
                                                bit3=get_16base_ch_num(str[i+2]),
                                                bit4=get_16base_ch_num(str[i+3]);
                                         // 但凡有一个0, 全部为0
-                                        if(bit1*bit2*bit3*bit4 == 0){
+                                        unlikely_if (bit1*bit2*bit3*bit4 == 0){
                                                 return {"", "非法的UTF-16转义"};
                                         }
                                         unsigned int this_point = ((bit1-1)<<12) + ((bit2-1)<<8) + ((bit3-1)<<4) + (bit4-1);
                                         if (this_point>=0xD800 && this_point<=0xDBFF) { // high-half zone
-                                                if(is_low_zone) {
+                                                unlikely_if (is_low_zone) {
                                                         return {"", "出现在低位的高代理, 非法的UTF-16转义"};
                                                 }
                                                 point = this_point;
                                                 is_low_zone = true;
                                         } else if (this_point>=0xDC00 && this_point<=0xDFFF) { // low-half zone
-                                                if(!is_low_zone) {
+                                                unlikely_if (!is_low_zone) {
                                                         return {"", "出现在高位的低代理, 非法的UTF-16转义"};
                                                 }
                                                 point = ((point-0xD800) << 10 | (this_point-0xDC00)) + 0x10000;
@@ -1544,7 +1560,7 @@ private:
                                 break;
                         }
                         default:
-                                if(!is_view) {
+                                if (!is_view) {
                                         ret += ch;
                                 }
                         }
@@ -1583,11 +1599,11 @@ private:
                 case '+':
                         is_negative = true;  // 后续取反
                 case '-':
-                        if (idx+1 >= str.length()) {
+                        unlikely_if (idx+1 >= str.length()) {
                                 return {0, types::Null, "孤立的+/-号, 发现EOF, 非法的`number`"};
                         }
                         ch = str[idx+1];
-                        if (ch<'0' || ch>'9') {
+                        unlikely_if (ch<'0' || ch>'9') {
                                 return {0, types::Null, "孤立的+/-号, 非法的`number`"};
                         }
                         is_negative = !is_negative;  // true->false, false->true
@@ -1621,17 +1637,17 @@ private:
                                 goto parse_string_to_number;
                                 break;
                         case '.':
-                                if (flag>_none) {
+                                unlikely_if (flag>_none) {
                                         return {0, types::Null, "多余的'.', 非法的`number`"};
                                 }
                                 flag = _dot;
                                 break;
                         case 'E':
                         case 'e':
-                                if (flag>_dot) {
+                                unlikely_if (flag>_dot) {
                                         return {0, types::Null, "多余的'e', 非法的`number`"};
                                 }
-                                if (str[idx-1] == '.') {
+                                unlikely_if (str[idx-1] == '.') {
                                         return {0, types::Null, "'.'后跟随的'e', 非法的number"};
                                 }
                                 flag += 2;  // none+2=e, dot+2=dot_and_e
@@ -1639,7 +1655,7 @@ private:
                         case '+':
                                 neg_e = true;  // 之后取反
                         case '-':
-                                if (str[idx-1] != 'e') {
+                                unlikely_if (str[idx-1] != 'e') {
                                         return {0, types::Null, "未预期的+/-号, 非法的`number`"};
                                 }
                                 neg_e = !neg_e;
@@ -1691,7 +1707,7 @@ parse_string_to_number:
                         }
                         return {res_mem, types::Float, ""};
                 } else {
-                        if (int_part > tools::LL_MAX) {
+                        unlikely_if (int_part > tools::LL_MAX) {
                                 if (is_negative) {
                                         double &res = tools::mut_memcast<double>(&res_mem);
                                         res = -(double)int_part;
@@ -1720,23 +1736,23 @@ parse_string_to_number:
                         case ' ': case '\t': case '\n':
                                 continue;
                         case ',':
-                                if (need_comma) {
+                                likely_if (need_comma) {
                                         need_comma=false;
                                 } else {
                                         return {{}, "预期为'值', 发现冗余的',', 非法的`array`"};
                                 }
                                 break;
                         case ']':
-                                if (!need_comma && result.size()!=0) {
+                                unlikely_if (!need_comma && result.size()!=0) {
                                         return {{}, "尾随',', 非法的`array`"};
                                 }
                                 return {std::move(result), {}};
                         default:  // 任何其他字符的情况
-                                if (need_comma) {
+                                unlikely_if (need_comma) {
                                         return {{}, "发现未预期的字符, 预期为',', 非法的`array`"};
                                 }
                                 auto [val, err] = parsing_func(str, idx);
-                                if (!err.empty()) {
+                                unlikely_if (!err.empty()) {
                                         return {{}, std::move(err)};
                                 }
                                 result.push_back(std::move(val));
@@ -1759,8 +1775,8 @@ parse_string_to_number:
                         case ' ': case '\t': case '\n':
                                 continue;
                         case '}':
-                                if (at_part!=comma_or_end) {
-                                        if (at_part==part_key && result.size()==0) {
+                                unlikely_if (at_part!=comma_or_end) {
+                                        likely_if (at_part==part_key && result.size()==0) {
                                                 return {std::move(result), ""};  // empty json object, like "{}"
                                         } else {
                                                 return {{}, "结构不完整, 未预期的'}', 非法的`object`"};
@@ -1770,11 +1786,11 @@ parse_string_to_number:
                         }
                         switch (at_part) {
                         case part_key: {
-                                if (ch!='"') {
+                                unlikely_if (ch!='"') {
                                         return {{}, "预期为'键', 发现异常字符, 非法的`object`"};
                                 }
                                 auto [key, err] = parse_string(str, idx);
-                                if (!err.empty()) {
+                                unlikely_if (!err.empty()) {
                                         return {{}, std::move(err)};
                                 }
                                 temp.first = std::move(key);
@@ -1782,14 +1798,14 @@ parse_string_to_number:
                                 break;
                         }
                         case part_colon:
-                                if (ch!=':') {
+                                unlikely_if (ch!=':') {
                                         return {{}, "预期为':', 发现异常字符, 非法的`object`"};
                                 }
                                 at_part = part_val;
                                 break;
                         case part_val: {
                                 auto [val, err] = parsing_func(str, idx);
-                                if (!err.empty()) {
+                                unlikely_if (!err.empty()) {
                                         return {{}, std::move(err)};
                                 }
                                 temp.second = std::move(val);
@@ -1798,7 +1814,7 @@ parse_string_to_number:
                                 break;
                         }
                         case comma_or_end:
-                                if (ch!=',') {
+                                unlikely_if (ch!=',') {
                                         return {{}, "预期为',', 发现异常字符, 非法的`object`"};
                                 }
                                 at_part = part_key;
@@ -1826,11 +1842,11 @@ public:
                         }
                         break;
                 }
-                if (idx == json_text.length()) {
+                unlikely_if (idx == json_text.length()) {
                         return {nullptr, "", idx};
                 }
                 auto [json_obj, err] = parsing_func(json_text, idx);
-                if (!err.empty()) {
+                unlikely_if (!err.empty()) {
                         return {nullptr, std::move(err), idx};
                 } else {
                         ++idx;  // at a new character we don't parsed
@@ -1843,7 +1859,7 @@ public:
                                 break;
                         }
                         // not at the end, some redundant characters
-                        if (idx < json_text.length()) {
+                        unlikely_if (idx < json_text.length()) {
                                 return {nullptr, "完整结构后的多余字符, 非法的json", idx};
                         }
                         return {std::move(json_obj), "", idx};
@@ -1862,7 +1878,7 @@ public:
 
         basic_json(std::ifstream file) noexcept {
                 auto [temp, err, idx] = parse(std::move(file));
-                if (!err.empty()) {
+                unlikely_if (!err.empty()) {
                         Type = types::Null;
                         return;
                 }
@@ -1871,7 +1887,7 @@ public:
 
         auto operator=(std::ifstream file) noexcept -> basic_json& {
                 auto [temp, err, idx] = parse(std::move(file));
-                if (!err.empty()) {
+                unlikely_if (!err.empty()) {
                         Type = types::Null;
                 } else {
                         *this = std::move(temp);
@@ -1881,7 +1897,7 @@ public:
 
         auto parse_from(const std::string& str) noexcept -> std::pair<err_string_t, size_t> {
                 auto [temp, err, idx] = parse(str);
-                if (!err.empty()) {
+                unlikely_if (!err.empty()) {
                         return {std::move(err), idx};
                 }
                 *this = std::move(temp);
@@ -1890,7 +1906,7 @@ public:
 
         auto parse_from(std::ifstream file) noexcept -> std::pair<err_string_t, size_t> {
                 auto [temp, err, idx] = parse(std::move(file));
-                if (!err.empty()) {
+                unlikely_if (!err.empty()) {
                         return {std::move(err), idx};
                 }
                 *this = std::move(temp);
@@ -1919,7 +1935,7 @@ using json_with_pool = basic_json<tools::std_string_wrapping, std::vector, tools
 // syntactic sugar
 inline auto operator""_json(const char* constr, size_t) -> json {
         auto [temp, err, _] = json::parse(constr);
-        if (!err.empty()) {
+        unlikely_if (!err.empty()) {
                 return nullptr;
         }
         return std::move(temp);

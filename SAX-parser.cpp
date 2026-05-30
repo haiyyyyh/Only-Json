@@ -132,7 +132,7 @@ static const bool str_skip_ch_table[256] = {
         1, 1, 0, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 0, 1, 1, 1, 1, 1,
+        1, 1, 0, 1, 1, 1, 1, 0,
         1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1,
@@ -338,7 +338,7 @@ public:
         HOT INLINE char peek() { return *iter; }
 
         HOT INLINE void seek() {
-                likely_if(iter != end) { ++iter; }
+                ++iter;
         }
 
         HOT INLINE char get() {
@@ -354,14 +354,15 @@ public:
 };
 
 
-constexpr unsigned int flag_parse_number_as_str = 0b0001;
-constexpr unsigned int flag_enable_following_comma = 0b0010;
-constexpr unsigned int flag_enable_escape_line_break = 0b0100;
-constexpr unsigned int flag_no_parse_escape_sequence = 0b1000;
+constexpr unsigned int flag_parse_number_as_str = 0b00000001;
+constexpr unsigned int flag_enable_following_comma = 0b00000010;
+constexpr unsigned int flag_enable_escape_line_break = 0b00000100;
+constexpr unsigned int flag_no_parse_escape_sequence = 0b00001000;
+constexpr unsigned int flag_enable_single_quot = 0b00010000;
 
 
 // MARK: parser
-template <class IstreamT, class HandlerT, unsigned int flag=0b0000>
+template <class IstreamT, class HandlerT, unsigned int flag=0b00000000>
 class Parser {
 public:
         IstreamT& istream;
@@ -423,8 +424,9 @@ INLINE unsigned int read_4bit_of_unicode() {
 }
 
 // MARK: parse_string()
+template <char quot='"'>
 INLINE auto parse_string() -> const char* {
-        istream.seek(); // skip '"'
+        istream.seek(); // skip the quotation " or '
         char ch;
         // most of the string doesn't have escape sequence
         while(true) {
@@ -435,7 +437,7 @@ _eat_ascii:
                         continue;
                 }
                 switch (ch) {
-                case '"':
+                case quot:
                         return "";
                 case '\0':
                         return "未闭合的'\"', 发现EOF";
@@ -443,15 +445,17 @@ _eat_ascii:
                         return "未闭合的'\"', 发现换行符";
                 case '\\':
                         if constexpr (flag & flag_no_parse_escape_sequence) {
-                                // escaped '"' only
-                                if (istream.peek()=='"') {
-                                        handler.push_char('"');
+                                // escaped quotation only
+                                if (istream.peek()==quot) {
+                                        handler.push_char(quot);
                                         istream.seek();
                                         continue;
                                 }
                         } else {
                                 goto _had_escape;
                         }
+                default:
+                        handler.push_char(ch);
                 }
         }
 _had_escape:
@@ -460,7 +464,7 @@ _had_escape:
         switch (ch) {
         case '\0':
                 return "'\\'后的EOF, 非法转义";
-        case '"':  handler.push_char('"');  break;
+        case quot: handler.push_char(quot); break;
         case '\\': handler.push_char('\\'); break;
         case 'b':  handler.push_char('\b'); break;
         case 'f':  handler.push_char('\f'); break;
@@ -744,7 +748,7 @@ auto parse() -> const char* {
                 obj_v
         };
         // std::stack<states, std::vector<states>> stack; // 可能的后期性能瓶颈
-        states stack[39]; states* top = stack;
+        states stack[1024]; states* top = stack;
         bool check_number_first_char = false;
 _start_val:
         char temp_ch = istream.peek();
@@ -768,10 +772,25 @@ _start_val:
         case 'n':
                 goto _parse_null;
         default:
+                // single quotation '
+                if constexpr (flag & flag_enable_single_quot) {
+                        if (temp_ch=='\'') {
+                                goto _parse_str;
+                        }
+                }
                 return "未预期的字符";
         }
 _parse_str: {
         handler.start_str();
+        if constexpr (flag & flag_enable_single_quot) {
+                if (temp_ch=='\'') {
+                        auto err = parse_string<'\''>();
+                        unlikely_if (err[0]!='\0')
+                                return err;
+                        handler.end_str();
+                        goto _end_val;
+                }
+        }
         auto err = parse_string();
         unlikely_if (err[0]!='\0')
                 return err;
@@ -826,6 +845,11 @@ _obj_start:
                 return "遇到EOF, 缺完整键值对或'}'";
         temp_ch = istream.peek();
         unlikely_if (temp_ch!='"') {
+                if constexpr (flag & flag_enable_single_quot) {
+                        if (temp_ch=='\'') {
+                                goto _parse_str;
+                        }
+                }
                 likely_if (temp_ch=='}') {
                         istream.seek(); // skip '}'
                         goto _obj_end;
@@ -840,6 +864,11 @@ _obj_key:
                 return "遇到EOF, 缺完整键值对或'}'";
         temp_ch = istream.peek();
         unlikely_if (temp_ch!='"') {
+                if constexpr (flag & flag_enable_single_quot) {
+                        if (temp_ch=='\'') {
+                                goto _parse_str;
+                        }
+                }
                 // check if allow following comma
                 if constexpr (flag & flag_enable_following_comma) {
                         if (temp_ch=='}') {
@@ -938,7 +967,6 @@ _end_func:
 }  // namespace hai
 
 #include <print>
-using std::print;
 
 class Handler {
         std::string temp;
@@ -999,7 +1027,7 @@ public:
 using namespace hai;
 
 int main() {
-        Istream istream(std::ifstream("./test/big2.json"));
+        Istream istream(std::ifstream("./test/1.json"));
         Handler handle;
         Parser<
                 Istream,
