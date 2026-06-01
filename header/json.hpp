@@ -47,14 +47,13 @@
 // MARK: Headers
 
 
-#include <charconv>         // to_chars
-#include <cmath>            // macro INFINITY
-#include <cstdio>           // fprintf for panic output
+#include <charconv>         // to_chars for json::dump()
 #include <cstring>          // memcpy
-#include <fstream>          // ifstring
+#include <fstream>          // ifstream
 #include <map>              // object_t
 #include <memory_resource>  // poll
 #include <string>           // string_t
+#include <type_traits>      // std::enable_if<> condition
 #include <vector>           // array_t
 
 
@@ -121,6 +120,15 @@ constexpr bool FloatOnly<double>{true};
 
 template <>
 constexpr bool FloatOnly<long double>{true};
+
+/* IEEE positive infinity. */
+#ifndef INFINITY
+#if __GNUC_PREREQ(3, 3)
+#define INFINITY (__builtin_inff())
+#else
+#define INFINITY HUGE_VALF
+#endif
+#endif
 
 template <typename T1>
 constexpr auto max_sizeof() -> unsigned long {
@@ -601,21 +609,22 @@ private:
 public:
         basic_json() { Type = types::Null; }
         // Integer match this function
-        template <typename T>
-                requires(tools::IntegerOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::IntegerOnly<T>, int> = 0>
+        // requires(tools::IntegerOnly<T>)
         basic_json(T i_v) noexcept {
-                unlikely_if (i_v > tools::LL_MAX) {
+                unlikely_if(i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = types::Unsign;
-                } else {
+                }
+                else {
                         new (mem_block) long long(i_v);
                         Type = types::Integer;
                 }
         }
 
         // Floating match this function
-        template <typename T>
-                requires(tools::FloatOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::FloatOnly<T>, int> = 0>
+        // requires(tools::FloatOnly<T>)
         basic_json(T f_v) noexcept {
                 new (mem_block) double(f_v);
                 Type = types::Float;
@@ -654,7 +663,7 @@ public:
                 Type = types::Array;
         }
 
-        template <typename = std::enable_if<true>>
+        template <typename std::enable_if_t<true, int> = 0>
         basic_json(std::initializer_list<basic_json> initial_list) noexcept {
                 new (mem_block) array_t(initial_list);
                 Type = types::Array;
@@ -727,14 +736,14 @@ public:
         // (a assignment function that passed parameter std::ifstream is at P1.7)
 public:
         // Integer match this function
-        template <typename T>
-                requires(tools::IntegerOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::IntegerOnly<T>, int> = 0>
         auto operator=(T i_v) noexcept -> basic_json& {
                 free();
-                unlikely_if (i_v > tools::LL_MAX) {
+                unlikely_if(i_v > tools::LL_MAX) {
                         new (mem_block) unsigned long long(i_v);
                         Type = types::Unsign;
-                } else {
+                }
+                else {
                         new (mem_block) long long(i_v);
                         Type = types::Integer;
                 }
@@ -742,8 +751,7 @@ public:
         }
 
         // Floating match this function
-        template <typename T>
-                requires(tools::FloatOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::FloatOnly<T>, int> = 0>
         auto operator=(T f_v) noexcept -> basic_json& {
                 free();
                 new (mem_block) double(f_v);
@@ -800,7 +808,7 @@ public:
                 return *this;
         }
 
-        template <typename = std::enable_if<true>>
+        template <typename std::enable_if<true>* = nullptr>
         auto operator=(std::initializer_list<basic_json> initial_list) noexcept -> basic_json& {
                 free();
                 new (mem_block) array_t(initial_list);
@@ -883,20 +891,15 @@ public:
 public:
         template <typename T>
         operator T*() const noexcept {
-                unlikely_if (Type != types::Null) {
-                        tools::bad_conversion_panic("null type");
-                }
+                unlikely_if(Type != types::Null) { tools::bad_conversion_panic("null type"); }
                 return nullptr;
         }
 
         // not const
 
-        template <typename T>
-                requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::IntegerOnly<T> || tools::FloatOnly<T>, int> = 0>
         operator T() noexcept {
-                unlikely_if (Type > types::Float) {
-                        tools::bad_conversion_panic("number");
-                }
+                unlikely_if(Type > types::Float) { tools::bad_conversion_panic("number"); }
                 switch (Type) {
                 case types::Integer:
                         return (T)tools::mut_memcast<long long>(mem_block);
@@ -908,41 +911,30 @@ public:
         }
 
         operator bool() noexcept {
-                unlikely_if (Type != types::Boolean) {
-                        tools::bad_conversion_panic("boolean");
-                }
+                unlikely_if(Type != types::Boolean) { tools::bad_conversion_panic("boolean"); }
                 return tools::mut_memcast<bool>(mem_block);
         }
 
         operator string_t() noexcept {
-                unlikely_if (Type != types::String) {
-                        tools::bad_conversion_panic("string");
-                }
+                unlikely_if(Type != types::String) { tools::bad_conversion_panic("string"); }
                 return tools::mut_memcast<string_t>(mem_block);
         }
 
         operator array_t() noexcept {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_conversion_panic("array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_conversion_panic("array"); }
                 return tools::mut_memcast<array_t>(mem_block);
         }
 
         operator object_t() noexcept {
-                unlikely_if (Type != types::Object) {
-                        tools::bad_conversion_panic("object");
-                }
+                unlikely_if(Type != types::Object) { tools::bad_conversion_panic("object"); }
                 return tools::mut_memcast<object_t>(mem_block);
         }
 
         // const
 
-        template <typename T>
-                requires(tools::IntegerOnly<T> || tools::FloatOnly<T>)
+        template <typename T, typename std::enable_if_t<tools::IntegerOnly<T> || tools::FloatOnly<T>, int> = 0>
         operator const T() const noexcept {
-                unlikely_if (Type > types::Float) {
-                        tools::bad_conversion_panic("number");
-                }
+                unlikely_if(Type > types::Float) { tools::bad_conversion_panic("number"); }
                 switch (Type) {
                 case types::Integer:
                         return (T)tools::memcast<long long>(mem_block);
@@ -954,30 +946,22 @@ public:
         }
 
         operator const bool() const noexcept {
-                unlikely_if (Type != types::Boolean) {
-                        tools::bad_conversion_panic("boolean");
-                }
+                unlikely_if(Type != types::Boolean) { tools::bad_conversion_panic("boolean"); }
                 return tools::memcast<bool>(mem_block);
         }
 
         operator const string_t() const noexcept {
-                unlikely_if (Type != types::String) {
-                        tools::bad_conversion_panic("string");
-                }
+                unlikely_if(Type != types::String) { tools::bad_conversion_panic("string"); }
                 return tools::memcast<string_t>(mem_block);
         }
 
         operator const array_t() const noexcept {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_conversion_panic("array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_conversion_panic("array"); }
                 return tools::memcast<array_t>(mem_block);
         }
 
         operator const object_t() const noexcept {
-                unlikely_if (Type != types::Object) {
-                        tools::bad_conversion_panic("object");
-                }
+                unlikely_if(Type != types::Object) { tools::bad_conversion_panic("object"); }
                 return tools::memcast<object_t>(mem_block);
         }
 
@@ -990,104 +974,76 @@ public:
         // not const
 
         auto number_integer() noexcept -> long long& {
-                unlikely_if (Type != types::Integer) {
-                        tools::bad_getting_panic("integer number");
-                }
+                unlikely_if(Type != types::Integer) { tools::bad_getting_panic("integer number"); }
                 return tools::mut_memcast<long long>(mem_block);
         }
 
         auto number_unsign() noexcept -> unsigned long long& {
-                unlikely_if (Type != types::Integer) {
-                        tools::bad_getting_panic("unsigned number");
-                }
+                unlikely_if(Type != types::Integer) { tools::bad_getting_panic("unsigned number"); }
                 return tools::mut_memcast<unsigned long long>(mem_block);
         }
 
         auto number_floating() noexcept -> double& {
-                unlikely_if (Type != types::Float) {
-                        tools::bad_getting_panic("floating-point number");
-                }
+                unlikely_if(Type != types::Float) { tools::bad_getting_panic("floating-point number"); }
                 return tools::mut_memcast<double>(mem_block);
         }
 
         auto boolean() noexcept -> bool& {
-                unlikely_if (Type != types::Boolean) {
-                        tools::bad_getting_panic("boolean");
-                }
+                unlikely_if(Type != types::Boolean) { tools::bad_getting_panic("boolean"); }
                 return tools::mut_memcast<bool>(mem_block);
         }
 
         auto string() noexcept -> string_t& {
-                unlikely_if (Type != types::String) {
-                        tools::bad_getting_panic("string");
-                }
+                unlikely_if(Type != types::String) { tools::bad_getting_panic("string"); }
                 return tools::mut_memcast<string_t>(mem_block);
         }
 
         auto array() noexcept -> array_t& {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_getting_panic("array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_getting_panic("array"); }
                 return tools::mut_memcast<array_t>(mem_block);
         }
 
         auto object() noexcept -> object_t& {
-                unlikely_if (Type != types::Object) {
-                        tools::bad_getting_panic("object");
-                }
+                unlikely_if(Type != types::Object) { tools::bad_getting_panic("object"); }
                 return tools::mut_memcast<object_t>(mem_block);
         }
 
         // const
 
         auto number_integer() const noexcept -> const long long& {
-                unlikely_if (Type != types::Integer) {
-                        tools::bad_getting_panic("integer number");
-                }
+                unlikely_if(Type != types::Integer) { tools::bad_getting_panic("integer number"); }
                 // tools::memcast & memcast or use const_cast<> at here all cause errors
                 // so use C-style unsafe conversion
                 return tools::memcast<long long>(mem_block);
         }
 
         auto number_unsign() const noexcept -> const unsigned long long& {
-                unlikely_if (Type != types::Integer) {
-                        tools::bad_getting_panic("unsigned number");
-                }
+                unlikely_if(Type != types::Integer) { tools::bad_getting_panic("unsigned number"); }
                 return tools::memcast<unsigned long long>(mem_block);
         }
 
         auto number_floating() const noexcept -> const double& {
-                unlikely_if (Type != types::Float) {
-                        tools::bad_getting_panic("floating-point number");
-                }
+                unlikely_if(Type != types::Float) { tools::bad_getting_panic("floating-point number"); }
                 return tools::memcast<double>(mem_block);
         }
 
         auto boolean() const noexcept -> const bool& {
-                unlikely_if (Type != types::Boolean) {
-                        tools::bad_getting_panic("boolean");
-                }
+                unlikely_if(Type != types::Boolean) { tools::bad_getting_panic("boolean"); }
                 return tools::memcast<bool>(mem_block);
         }
 
         auto string() const noexcept -> const string_t& {
-                unlikely_if (Type != types::String) {
-                        tools::bad_getting_panic("string");
-                }
+                unlikely_if(Type != types::String) { tools::bad_getting_panic("string"); }
                 return tools::memcast<string_t>(mem_block);
         }
 
         auto array() const noexcept -> const array_t& {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_getting_panic("array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_getting_panic("array"); }
                 return tools::memcast<array_t>(mem_block);
         }
 
         auto object() const noexcept -> const object_t& {
-                unlikely_if (Type != types::Object) {
-                        tools::bad_getting_panic("object");
-                }
+                unlikely_if(Type != types::Object) { tools::bad_getting_panic("object"); }
                 return tools::memcast<object_t>(mem_block);
         }
 
@@ -1096,10 +1052,11 @@ public:
         // other operator overload
 public:
         auto operator[](unsigned long idx) noexcept -> basic_json& {
-                unlikely_if (Type == types::Null) {
+                unlikely_if(Type == types::Null) {
                         new (mem_block) array_t(idx + 1);
                         Type = types::Array;
-                } else unlikely_if (Type != types::Array) {
+                }
+                else unlikely_if(Type != types::Array) {
                         tools::bad_using_panic("operator[](size_t)", "array");
                 }
                 // undefined behavior (depend on the array implement)
@@ -1107,18 +1064,17 @@ public:
         }
 
         auto operator[](unsigned long idx) const noexcept -> const basic_json& {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_using_panic("operator[](size_t)", "array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_using_panic("operator[](size_t)", "array"); }
                 // undefined behavior (depend on the array implement)
                 return (tools::memcast<array_t>(mem_block))[idx];
         }
 
         auto operator[](const string_t& key) noexcept -> basic_json& {
-                unlikely_if (Type == types::Null) {
+                unlikely_if(Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
-                } else unlikely_if (Type != types::Object) {
+                }
+                else unlikely_if(Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
@@ -1126,10 +1082,11 @@ public:
         }
 
         auto operator[](const char (&key)[]) noexcept -> basic_json& {
-                unlikely_if (Type == types::Null) {
+                unlikely_if(Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
-                } else unlikely_if (Type != types::Object) {
+                }
+                else unlikely_if(Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
                 // undefined behavior (depend on the dict implement)
@@ -1137,18 +1094,14 @@ public:
         }
 
         auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
-                unlikely_if (Type != types::Object) {
-                        tools::bad_using_panic("operator+=(pair)", "object");
-                }
+                unlikely_if(Type != types::Object) { tools::bad_using_panic("operator+=(pair)", "object"); }
                 tools::mut_memcast<object_t>(mem_block).insert(std::move(insert_pair));
                 return *this;
         }
 
         template <typename = std::enable_if<true>>
         auto operator+=(basic_json other) noexcept {
-                unlikely_if (Type != types::Array) {
-                        tools::bad_using_panic("operator+=(json item)", "array");
-                }
+                unlikely_if(Type != types::Array) { tools::bad_using_panic("operator+=(json item)", "array"); }
                 tools::mut_memcast<array_t>(mem_block).push_back(std::move(other));
         }
 
@@ -1180,7 +1133,7 @@ public:
         // MARK: P1.6 json的序列化
         // for dumping function ↓↓↓
 private:
-         static void string_decode_dump(const std::string& in_str, std::string& to_str) {
+        static void string_decode_dump(const std::string& in_str, std::string& to_str) {
                 to_str += '"';
                 for (const auto& ch : in_str) {
                         if (ch >= 0 && ch < 32) {
@@ -1211,7 +1164,7 @@ private:
         // dumping
 private:
         // dump to string
-         void dump(std::string& str, int indent) const noexcept {
+        void dump(std::string& str, int indent) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1294,7 +1247,7 @@ private:
         }  // function `dump`
 
         // no pretty dumping (no indent and line break)
-         void fast_dump(std::string& str) const noexcept {
+        void fast_dump(std::string& str) const noexcept {
                 switch (Type) {
                 case types::Integer:
                         str += tools::to_str(tools::memcast<long long>(mem_block));
@@ -1837,29 +1790,30 @@ public:
                 // skip the space at the start
                 for (; idx < json_text.length(); ++idx) {
                         switch (json_text[idx]) {
-                        case ' ': case '\t': case '\n':
+                        case ' ':
+                        case '\t':
+                        case '\n':
                                 continue;
                         }
                         break;
                 }
-                unlikely_if (idx == json_text.length()) {
-                        return {nullptr, "", idx};
-                }
+                unlikely_if(idx == json_text.length()) { return {nullptr, "", idx}; }
                 auto [json_obj, err] = parsing_func(json_text, idx);
-                unlikely_if (!err.empty()) {
-                        return {nullptr, std::move(err), idx};
-                } else {
+                unlikely_if(!err.empty()) { return {nullptr, std::move(err), idx}; }
+                else {
                         ++idx;  // at a new character we don't parsed
                         // skip the space at the end
                         for (; idx < json_text.length(); ++idx) {
                                 switch (json_text[idx]) {
-                                case ' ': case '\t': case '\n':
+                                case ' ':
+                                case '\t':
+                                case '\n':
                                         continue;
                                 }
                                 break;
                         }
                         // not at the end, some redundant characters
-                        unlikely_if (idx < json_text.length()) {
+                        unlikely_if(idx < json_text.length()) {
                                 return {nullptr, "完整结构后的多余字符, 非法的json", idx};
                         }
                         return {std::move(json_obj), "", idx};
@@ -1878,7 +1832,7 @@ public:
 
         basic_json(std::ifstream file) noexcept {
                 auto [temp, err, idx] = parse(std::move(file));
-                unlikely_if (!err.empty()) {
+                unlikely_if(!err.empty()) {
                         Type = types::Null;
                         return;
                 }
@@ -1887,9 +1841,8 @@ public:
 
         auto operator=(std::ifstream file) noexcept -> basic_json& {
                 auto [temp, err, idx] = parse(std::move(file));
-                unlikely_if (!err.empty()) {
-                        Type = types::Null;
-                } else {
+                unlikely_if(!err.empty()) { Type = types::Null; }
+                else {
                         *this = std::move(temp);
                 }
                 return *this;
@@ -1897,18 +1850,14 @@ public:
 
         auto parse_from(const std::string& str) noexcept -> std::pair<err_string_t, size_t> {
                 auto [temp, err, idx] = parse(str);
-                unlikely_if (!err.empty()) {
-                        return {std::move(err), idx};
-                }
+                unlikely_if(!err.empty()) { return {std::move(err), idx}; }
                 *this = std::move(temp);
                 return {"", idx};
         }
 
         auto parse_from(std::ifstream file) noexcept -> std::pair<err_string_t, size_t> {
                 auto [temp, err, idx] = parse(std::move(file));
-                unlikely_if (!err.empty()) {
-                        return {std::move(err), idx};
-                }
+                unlikely_if(!err.empty()) { return {std::move(err), idx}; }
                 *this = std::move(temp);
                 return {"", idx};
         }
@@ -1935,9 +1884,7 @@ using json_with_pool = basic_json<tools::std_string_wrapping, std::vector, tools
 // syntactic sugar
 inline auto operator""_json(const char* constr, size_t) -> json {
         auto [temp, err, _] = json::parse(constr);
-        unlikely_if (!err.empty()) {
-                return nullptr;
-        }
+        unlikely_if(!err.empty()) { return nullptr; }
         return std::move(temp);
 }
 
