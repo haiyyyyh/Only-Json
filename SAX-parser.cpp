@@ -319,7 +319,7 @@ public:
                   size_cache(str.length()),
                   iter(&str[0]),
                   start(&str[0]),
-                  end(&str[size_cache - 1] + 1) {}
+                  end(&str.back() + 1) {}
 
         Istream(std::ifstream&& file) {
                 file.seekg(0, std::ios::end);
@@ -330,7 +330,7 @@ public:
                 size_cache = str.length();
                 iter = &str[0];
                 start = &str[0];
-                end = &str[size_cache - 1] + 1;
+                end = &str.back() + 1;
         }
 
         Istream(Istream&& other) = default;
@@ -338,10 +338,11 @@ public:
         HOT INLINE char peek() { return *iter; }
 
         HOT INLINE void seek() {
-                ++iter;
+                likely_if (iter!=end) ++iter;
         }
 
         HOT INLINE char get() {
+                unlikely_if (iter==end) return '\0';
                 char ret = *(iter++);
                 return ret;
         }
@@ -359,6 +360,7 @@ constexpr unsigned int flag_enable_following_comma = 0b00000010;
 constexpr unsigned int flag_enable_escape_line_break = 0b00000100;
 constexpr unsigned int flag_no_parse_escape_sequence = 0b00001000;
 constexpr unsigned int flag_enable_single_quot = 0b00010000;
+constexpr unsigned int flag_enable_comment = 0b00100000;
 
 
 // MARK: parser
@@ -374,7 +376,8 @@ public:
         // clang-format off
 private:
 
-// skip space, if at the end return `true`
+// MARK: skip space
+// if at the end return `true`
 INLINE bool eat_space() {
         char ch;
         while(true) {
@@ -389,6 +392,65 @@ INLINE bool eat_space() {
         }
         unlikely_if (ch=='\0') return true;
         return false;
+}
+
+// MARK: comment
+// skip space and comment,if allow comment
+INLINE bool eat_space_and_comment(const char* (&err)) {
+_start:
+        char ch = istream.peek();
+        if (ch=='/') goto _skip_comment;
+        else if (tools::skip_space_ch_table[(unsigned char)ch]) {
+                istream.seek(); // skip this space
+                goto _skip_space;
+        }
+        else if (ch=='\0') return true;
+        else return false;
+_skip_comment:
+        // skip comment if start with '/'
+        while (ch=='/') {
+                istream.seek(); // skip this '/'
+                ch = istream.get();
+                if (ch=='/') { // line comment
+                        while (true) {
+                                ch = istream.get();
+                                if (ch=='\n') {
+                                        break;
+                                } else if (ch=='\0') {
+                                        return true;
+                                }
+                        }
+                } else if (ch=='*') { // multiple line comment
+                        while (true) {
+                                ch = istream.get();
+                                // maybe "*/" close
+                                if (ch=='*') {
+                                        ch = istream.get();
+                                        if (ch=='/') {
+                                                ch = istream.peek();
+                                                break;
+                                        }
+                                }
+                                if (ch=='\0') {
+                                        err = "未闭合的注释/*, 发现EOF";
+                                        return true;
+                                }
+                        }
+                } else {
+                        err = "非法的注释格式,发现'/'";
+                        return false;
+                }
+        }
+        goto _start;
+_skip_space:
+        // skip space
+        while (true) {
+                ch = istream.peek();
+                likely_if (!tools::skip_space_ch_table[(unsigned char)ch]) break;
+                istream.seek();
+        }
+        unlikely_if (ch=='\0') return true;
+        goto _start;
 }
 
 INLINE static int8_t get_16base_ch_num(char ch) {
@@ -505,10 +567,9 @@ _had_escape:
                 if constexpr (flag & flag_enable_escape_line_break) {
                         // check \r\n
                         if (ch=='\r') {
-                                if (istream.peek()=='\n') {
-                                        istream.seek();
-                                }
-                        } else unlikely_if (ch!='\n') {
+                                ch = istream.get(); // skip '\r', expect '\n'
+                        }
+                        unlikely_if (ch!='\n') {
                                 return "非法转义";
                         }
                 } else {
@@ -736,20 +797,30 @@ public:
 
 // MARK: parse()
 auto parse() -> const char* {
+        // skip space definition
+        #define skip_space(ret) \
+                if constexpr (flag & flag_enable_comment) { \
+                        const char* err="";                           \
+                        unlikely_if (eat_space_and_comment(err))      \
+                                return ret;                           \
+                        else unlikely_if (err[0]!='\0')               \
+                                return err;                           \
+                } else {                                              \
+                        unlikely_if (eat_space()) {                   \
+                                return ret;                           \
+                        }                                             \
+                }
         // 所有标签, 均为'_'开头
         // all of the goto lable start with '_'
-        unlikely_if (eat_space()) {
-                return "empty json";
-        }
-        enum class states {
+        enum class state {
                 none,
                 in_arr,
                 obj_k,
                 obj_v
         };
-        // std::stack<states, std::vector<states>> stack; // 可能的后期性能瓶颈
-        states stack[1024]; states* top = stack;
+        state stack[1024]; state* top = stack;
         bool check_number_first_char = false;
+        skip_space("empty json");
 _start_val:
         char temp_ch = istream.peek();
         switch (temp_ch) {
@@ -782,6 +853,7 @@ _start_val:
         }
 _parse_str: {
         handler.start_str();
+        // if allow single quotation string
         if constexpr (flag & flag_enable_single_quot) {
                 if (temp_ch=='\'') {
                         auto err = parse_string<'\''>();
@@ -799,6 +871,7 @@ _parse_str: {
 }
 _parse_num: {
         if constexpr (flag & flag_parse_number_as_str) {
+                // if user want us parse number to string
                 handler.start_num();
                 auto err = parse_number_to_str(check_number_first_char);
                 unlikely_if (err[0]!='\0')
@@ -812,17 +885,18 @@ _parse_num: {
         goto _end_val;
 }
 _arr_start:
+        // set a new state stack
         ++top;
-        *top = states::in_arr;
+        *top = state::in_arr;
         handler.start_arr();
         istream.seek(); // skip '['
+        // check empty array []
         unlikely_if (istream.peek()==']') {
                 istream.seek();
                 goto _arr_end;
         }
 _arr_val:
-        unlikely_if (eat_space())
-                return "遇到EOF, 缺值或'}'";
+        skip_space("遇到EOF, 缺值或']'");
         // check if allow following comma
         if constexpr (flag & flag_enable_following_comma) {
                 if (istream.peek()==']') {
@@ -832,6 +906,7 @@ _arr_val:
         }
         goto _start_val;
 _arr_end:
+        // pop the stack
         --top;
         handler.end_arr();
         goto _end_val;
@@ -840,9 +915,8 @@ _obj_start:
         istream.seek(); // skip '{'
         ++top; // part of object, at key
         // here is also object key, but object can be empty "{}", special judge
-        *top = states::obj_k;
-        unlikely_if (eat_space())
-                return "遇到EOF, 缺完整键值对或'}'";
+        *top = state::obj_k;
+        skip_space("遇到EOF, 缺完整键值对或'}'");
         temp_ch = istream.peek();
         unlikely_if (temp_ch!='"') {
                 if constexpr (flag & flag_enable_single_quot) {
@@ -859,17 +933,18 @@ _obj_start:
         goto _parse_str;
 // other key string (not the first one)
 _obj_key:
-        *top = states::obj_k;
-        unlikely_if (eat_space())
-                return "遇到EOF, 缺完整键值对或'}'";
+        *top = state::obj_k;
+        skip_space("遇到EOF, 缺完整键值对或'}'");
         temp_ch = istream.peek();
+        // if it's not expected '"'
         unlikely_if (temp_ch!='"') {
+                // if allow 'string'
                 if constexpr (flag & flag_enable_single_quot) {
                         if (temp_ch=='\'') {
                                 goto _parse_str;
                         }
                 }
-                // check if allow following comma
+                // if allow following comma
                 if constexpr (flag & flag_enable_following_comma) {
                         if (temp_ch=='}') {
                                 istream.seek(); // skip '}'
@@ -880,9 +955,8 @@ _obj_key:
         }
         goto _parse_str;
 _obj_val:
-        *top = states::obj_v; // also part of object, at value
-        unlikely_if (eat_space())
-                return "遇到EOF, 键后缺值";
+        *top = state::obj_v; // also part of object, at value
+        skip_space("遇到EOF, 键后缺值");
         goto _start_val;
 _obj_end:
         --top; // pop the object stack, it's obj_v
@@ -920,13 +994,23 @@ _parse_null:
         handler.push_null();
         goto _end_val;
 _end_val:
-        bool at_end = eat_space();
+        bool at_end;
+        // skip space
+        if constexpr (flag & flag_enable_comment) {
+                const char* err = "";
+                at_end = eat_space_and_comment(err);
+                unlikely_if (err[0]!='\0')
+                        return err;
+        } else {
+                at_end = eat_space();
+        }
+        // empty stack, end of json, exit
         unlikely_if (top == stack) {
                 // single value json or value/object end
                 if(at_end) return "";
-                goto _end_func;
+                return "完整json结构后多余的字符";
         }
-        if (*top==states::in_arr) {
+        if (*top==state::in_arr) {
                 // path: _arr_val -> _start_val -> _end_val(here)
                 unlikely_if (at_end)
                         return "遇到EOF, 未闭合'[]'";
@@ -935,7 +1019,7 @@ _end_val:
                 if(temp_ch==']') goto _arr_end;
                 return "未预期字符, 应为']'";
         }
-        if (*top==states::obj_k) {
+        if (*top==state::obj_k) {
                 // path: _obj_key -> _parse_str -> _end_val(here)
                 unlikely_if (at_end)
                         return "键后的EOF, 缺少值和'}'";
@@ -944,7 +1028,7 @@ _end_val:
                         return "键后未预期的字符, 应为':'";
                 goto _obj_val;
         }
-        if (*top==states::obj_v) {
+        if (*top==state::obj_v) {
                 // path: _obj_val -> _start_val -> _end_val(here)
                 unlikely_if (at_end)
                         return "值后的EOF, 缺少'}'";
@@ -953,9 +1037,7 @@ _end_val:
                 if(temp_ch=='}') goto _obj_end;
                 return "未预期的字符, 应为'}'";
         }
-_end_func:
-        unlikely_if (!eat_space())
-                return "完整json结构后多余的字符";
+        // this doesn't run
         return "";
 }
 
@@ -967,79 +1049,83 @@ _end_func:
 }  // namespace hai
 
 #include <print>
+using std::print;
 
 class Handler {
         std::string temp;
         std::string temp_num;
 public:
         INLINE void start_str() {
-                // print("start str\n");
+                print("start str\n");
         }
         INLINE void end_str() {
-                // print("push str '{}'\nend str\n", temp);
-                // temp.clear();
+                print("push str '{}'\nend str\n", temp);
+                temp.clear();
         }
         INLINE void start_arr() {
-                // print("start arr\n");
+                print("start arr\n");
         }
         INLINE void end_arr() {
-                // print("end arr\n");
+                print("end arr\n");
         }
         INLINE void start_obj() {
-                // print("start obj\n");
+                print("start obj\n");
         }
         INLINE void end_obj() {
-                // print("end obj\n");
+                print("end obj\n");
         }
         INLINE void push_char(char n) {
-                // temp+=n;
-                // print("push \033[31m{}\033[0m\n", n);
+                temp+=n;
         }
         INLINE void push_number(long long n) {
-                // print("push \033[31m{}\033[0m\n", n);
+                print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_number(unsigned long long n) {
-                // print("push \033[31m{}\033[0m\n", n);
+                print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_number(double n) {
-                // print("push \033[31m{}\033[0m\n", n);
+                print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_bool(bool n) {
-                // print("push \033[31m{}\033[0m\n", n);
+                print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_null() {
-                // print("push \033[31mnull64\033[0m\n");
+                print("push \033[31mnull64\033[0m\n");
         }
         INLINE void start_num() {
-                // print("start num\n");
+                print("start num\n");
         }
         INLINE void end_num() {
-                // print("push num '{}'\nend num\n", temp_num);
-                // temp_num.clear();
+                print("push num '{}'\nend num\n", temp_num);
+                temp_num.clear();
         }
         INLINE void push_num_ch(char ch) {
-                // temp_num+=ch;
+                temp_num+=ch;
         }
 };
 
 
-
 using namespace hai;
+
 
 int main() {
         Istream istream(std::ifstream("./test/1.json"));
         Handler handle;
         Parser<
                 Istream,
-                Handler
+                Handler,
+                flag_enable_comment |
+                flag_enable_following_comma |
+                flag_enable_single_quot |
+                flag_enable_escape_line_break
         > parser (istream, handle);
-        // std::string err = parser.parse();
-        // if (!err.empty()) {
-        //         std::print("{} at {}", err, istream.pos());
-        //         return 1;
-        // }
-        for (int i = 0; i < 10; ++i) {
-                parser.parse();
-                parser.istream.reset();
+        std::string err = parser.parse();
+        if (!err.empty()) {
+                std::print("{} at {}", err, istream.pos());
+                return 1;
         }
+        // for (int i = 0; i < 10; ++i) {
+        //         parser.parse();
+        //         parser.istream.reset();
+        // }
 }
