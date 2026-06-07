@@ -1537,6 +1537,5 @@
   },
   "title": ".clang-format config",
   "type": "object",
-  "test":[-2345.23e-12],
-  /**/  "key" /**/ : /**/ /**/   123
+  "test":[-2345.23e-12]
 }

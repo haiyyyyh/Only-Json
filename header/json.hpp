@@ -1,3 +1,28 @@
+/****************************************************************************************
+                                                             _____________________
+  https://github.com/haiyyyyh                               |     by haiyyyyh     |
+      only-json forward                                     |   version v0.7.0    |
+                                                            ``````````````````````
+                             _      _
+ //|||\\  //\\    \\  ||     \\    //                \\  //||\\   //|||\\  //\\    \\
+||    ||  || \\   ||  ||      \\  //                 ||  ||      ||    ||  || \\   ||
+||    ||  ||  \\  ||  ||       \\//   ::::::::  _    ||  \\||\\  ||    ||  ||  \\  ||
+||    ||  ||   \\ ||  ||        ||              \\   ||  _   ||  ||    ||  ||   \\ ||
+\\\||//   \\    \\//  \\\||//   ||               \\\//   \\||//  \\|||//   \\    \\//
+
+                                                                    ---- Bloated IS Sin
+     =================
+    [|      {↗}      |]
+    [|   Only-Json   |]
+    [| License : MIT |]
+    [|  © haiyyyyh   |]
+     ^^^^^^^^^^^^^^^^
+
+    Nothing, but only json
+
+*****************************************************************************************/
+
+
 #include <map>              // object_t
 #include <memory_resource>  // poll
 #include <string>           // string_t
@@ -43,7 +68,7 @@ inline auto operator""_json(const char* constr, size_t) -> json {
 template <class T>
 class pool {
 private:
-        // 全局静态内存池
+        // 全局静态内存池,也可按需替换为自己喜欢的池
         inline static std::pmr::monotonic_buffer_resource s_pool;
 
 public:

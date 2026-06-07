@@ -1,7 +1,7 @@
 /****************************************************************************************
                                                              _____________________
   https://github.com/haiyyyyh                               |     by haiyyyyh     |
-     only-json::DOM parser                                  |   version v0.4.0    |
+   only-json DOM parser base                                |   version v0.7.0    |
                                                             ``````````````````````
                              _      _
  //|||\\  //\\    \\  ||     \\    //                \\  //||\\   //|||\\  //\\    \\
@@ -24,22 +24,23 @@
  ===\ Source BookMark
     |     >> something like "P0: " in source code, for editor searching and quickly jumping
     |- Headers
-    |- P0
-    |- P1
-    |- \- P1.0
-    |  |- P1.1
-    |  |- P1.2
-    |  |- P1.3
-    |  |- P1.4
-    |  |- P1.5
-    |  `- P1.6
-    `- P2
-       \- P2.0
-       |- P2.1
-       |- P2.2
-       |- P2.3
-       |- P2.4
-       `- P2.5
+    |- P0  一些工具
+    |- P1  basic_json
+    |- \- P1.0  私有成员
+    |  |- P1.1  构造和析构
+    |  |- P1.2  等号赋值的重载
+    |  |- P1.3  json与数值类型的转换
+    |  |- P1.4  访问函数比如object()
+    |  |- P1.5  其他功能函数
+    |  `- P1.6  序列化dump()
+    |- P2  核心json解析逻辑
+    |  \- P2.0  调度函数
+    |  |- P2.1  解析字符串
+    |  |- P2.2  解析数字字面量
+    |  |- P2.3  解析数组
+    |  |- P2.4  解析对象
+    |  `- P2.5  对外的调用接口
+    `- P3  其他功能扩展(当前只有一个错误检查器)
 
 *****************************************************************************************/
 
@@ -973,13 +974,11 @@ public:
                 else unlikely_if(Type != types::Array) {
                         tools::bad_using_panic("operator[](size_t)", "array");
                 }
-                // undefined behavior (depend on the array implement)
                 return (tools::mut_memcast<array_t>(mem_block))[idx];
         }
 
         auto operator[](unsigned long idx) const noexcept -> const basic_json& {
                 unlikely_if(Type != types::Array) { tools::bad_using_panic("operator[](size_t)", "array"); }
-                // undefined behavior (depend on the array implement)
                 return (tools::memcast<array_t>(mem_block))[idx];
         }
 
@@ -991,11 +990,10 @@ public:
                 else unlikely_if(Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
-                // undefined behavior (depend on the dict implement)
                 return (tools::mut_memcast<object_t>(mem_block))[key];
         }
 
-        auto operator[](const char (&key)[]) noexcept -> basic_json& {
+        auto operator[](const char* key) noexcept -> basic_json& {
                 unlikely_if(Type == types::Null) {
                         new (mem_block) object_t();
                         Type = types::Object;
@@ -1003,8 +1001,21 @@ public:
                 else unlikely_if(Type != types::Object) {
                         tools::bad_using_panic("operator[](string key)", "object");
                 }
-                // undefined behavior (depend on the dict implement)
                 return (tools::mut_memcast<object_t>(mem_block))[key];
+        }
+
+        auto operator[](const string_t& key) const noexcept -> const basic_json& {
+                unlikely_if(Type != types::Object) {
+                        tools::bad_using_panic("operator[](string key)", "object");
+                }
+                return (tools::memcast<object_t>(mem_block)).at(key);
+        }
+
+        auto operator[](const char* key) const noexcept -> const basic_json& {
+                unlikely_if(Type != types::Object) {
+                        tools::bad_using_panic("operator[](string key)", "object");
+                }
+                return (tools::memcast<object_t>(mem_block)).at(key);
         }
 
         auto operator+=(std::pair<string_t, basic_json> insert_pair) noexcept -> basic_json& {
@@ -1041,6 +1052,10 @@ public:
                 case types::Object:
                         return tools::memcast<object_t>(mem_block) == tools::memcast<object_t>(other.mem_block);
                 }
+        }
+
+        bool operator!=(const basic_json& other) const noexcept {
+                return !(*this == other);
         }
 
 
