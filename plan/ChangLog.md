@@ -1,5 +1,8 @@
 # developing `0.8.0`
 
+## day `26.6.24`
+- SAX parser添加NaN和Inf支持
+
 ## day `26.6.7`
 - 添加README,小改,上传github
 

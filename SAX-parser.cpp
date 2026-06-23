@@ -361,6 +361,7 @@ constexpr unsigned int flag_enable_escape_line_break = 0b00000100;
 constexpr unsigned int flag_no_parse_escape_sequence = 0b00001000;
 constexpr unsigned int flag_enable_single_quot = 0b00010000;
 constexpr unsigned int flag_enable_comment = 0b00100000;
+constexpr unsigned int flag_enable_extention_value = 0b01000000;
 
 
 // MARK: parser
@@ -605,6 +606,7 @@ INLINE auto parse_number(bool check_first_ch) -> const char* {
                 }
         case '+':
                 is_neg = true; // 后续取反
+                // fall through
         case '-':
                 istream.seek();
                 char next_ch = istream.peek();
@@ -613,6 +615,29 @@ INLINE auto parse_number(bool check_first_ch) -> const char* {
                 goto _int_part;
         }
 _int_part:
+        // if allow NaN and Inf
+        if constexpr (flag == flag_enable_extention_value) {
+                char ch = istream.peek();
+                if (ch=='N') {
+                        istream.seek(); // skip this 'N'
+                        unlikely_if (istream.pos()+2 >= istream.length() ||
+                                        istream.get() != 'a' ||
+                                        istream.get() != 'N' ){
+                                return "未预期的'N'";
+                        }
+                        handler.push_number(NAN);
+                        return "";
+                } else if (ch=='I') {
+                        istream.seek(); // skip this 'I'
+                        unlikely_if (istream.pos()+2 >= istream.length() ||
+                                        istream.get() != 'n' ||
+                                        istream.get() != 'f' ){
+                                return "未预期的'I'";
+                        }
+                        handler.push_number(is_neg ? INFINITY : -INFINITY);
+                        return "";
+                }
+        }
         while (true) {
                 char ch = istream.peek();
                 likely_if (ch>='0' && ch<='9') {
@@ -730,6 +755,37 @@ INLINE auto parse_number_to_str(bool check_first_ch) -> const char* {
                 goto _int_part;
         }
 _int_part:
+        // if allow NaN and Inf
+        if constexpr (flag == flag_enable_extention_value) {
+                 ch = istream.peek();
+                if (ch=='N') {
+                        istream.seek(); // skip this 'N'
+                        unlikely_if (istream.pos()+2 >= istream.length() ||
+                                        istream.get() != 'a' ||
+                                        istream.get() != 'N' ){
+                                return "未预期的'N'";
+                        }
+                        handler.start_num();
+                        handler.push_num_ch('N');
+                        handler.push_num_ch('a');
+                        handler.push_num_ch('N');
+                        handler.end_num();
+                        return "";
+                } else if (ch=='I') {
+                        istream.seek(); // skip this 'I'
+                        unlikely_if (istream.pos()+2 >= istream.length() ||
+                                        istream.get() != 'n' ||
+                                        istream.get() != 'f' ){
+                                return "未预期的'I'";
+                        }
+                        handler.start_num();
+                        handler.push_num_ch('I');
+                        handler.push_num_ch('n');
+                        handler.push_num_ch('f');
+                        handler.end_num();
+                        return "";
+                }
+        }
         while (true) {
                 ch = istream.peek();
                 likely_if (ch>='0' && ch<='9') {
@@ -847,6 +903,10 @@ _start_val:
                 if constexpr (flag & flag_enable_single_quot) {
                         if (temp_ch=='\'') {
                                 goto _parse_str;
+                        }
+                } else if constexpr (flag & flag_enable_extention_value) {
+                        if (temp_ch=='N' || temp_ch=='I') { // NaN and Inf
+                                goto _parse_num;
                         }
                 }
                 return "未预期的字符";
@@ -1048,59 +1108,57 @@ _end_val:
 
 }  // namespace hai
 
-#include <print>
-using std::print;
 
 class Handler {
         std::string temp;
         std::string temp_num;
 public:
         INLINE void start_str() {
-                print("start str\n");
+                // print("start str\n");
         }
         INLINE void end_str() {
-                print("push str '{}'\nend str\n", temp);
-                temp.clear();
+                // print("push str '{}'\nend str\n", temp);
+                // temp.clear();
         }
         INLINE void start_arr() {
-                print("start arr\n");
+                // print("start arr\n");
         }
         INLINE void end_arr() {
-                print("end arr\n");
+                // print("end arr\n");
         }
         INLINE void start_obj() {
-                print("start obj\n");
+                // print("start obj\n");
         }
         INLINE void end_obj() {
-                print("end obj\n");
+                // print("end obj\n");
         }
-        INLINE void push_char(char n) {
-                temp+=n;
+        INLINE void push_char(char ) {
+                // temp+=n;
         }
-        INLINE void push_number(long long n) {
-                print("push \033[31m{}\033[0m\n", n);
+        INLINE void push_number(long long ) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_number(unsigned long long n) {
-                print("push \033[31m{}\033[0m\n", n);
+        INLINE void push_number(unsigned long long ) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_number(double n) {
-                print("push \033[31m{}\033[0m\n", n);
+        INLINE void push_number(double ) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
-        INLINE void push_bool(bool n) {
-                print("push \033[31m{}\033[0m\n", n);
+        INLINE void push_bool(bool ) {
+                // print("push \033[31m{}\033[0m\n", n);
         }
         INLINE void push_null() {
-                print("push \033[31mnull64\033[0m\n");
+                // print("push \033[31mnull64\033[0m\n");
         }
         INLINE void start_num() {
-                print("start num\n");
+                // print("start num\n");
         }
         INLINE void end_num() {
-                print("push num '{}'\nend num\n", temp_num);
-                temp_num.clear();
+                // print("push num '{}'\nend num\n", temp_num);
+                // temp_num.clear();
         }
-        INLINE void push_num_ch(char ch) {
-                temp_num+=ch;
+        INLINE void push_num_ch(char ) {
+                // temp_num+=n;
         }
 };
 
@@ -1121,11 +1179,11 @@ int main() {
         > parser (istream, handle);
         std::string err = parser.parse();
         if (!err.empty()) {
-                std::print("{} at {}", err, istream.pos());
+                // print("{} at {}", err, istream.pos());
                 return 1;
         }
-        // for (int i = 0; i < 10; ++i) {
-        //         parser.parse();
-        //         parser.istream.reset();
-        // }
+        for (int i = 0; i < 10; ++i) {
+                parser.parse();
+                parser.istream.reset();
+        }
 }
